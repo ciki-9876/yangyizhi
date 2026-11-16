@@ -1,0 +1,6 @@
+<!DOCTYPE html><meta charset="utf-8"><style>body{margin:0;background:#ECEEFF;font-family:sans-serif}.g{display:grid;grid-template-columns:repeat(6,200px);gap:10px;padding:10px}.c{border:3px solid #1E1A3C;border-radius:18px}svg{display:block;width:100%}</style><div class="g" id="g"></div>
+<script src="../critter.js"></script><script>
+const parts=['eyes','horns','wings','antenna','tail','plates'], moods=['awake','ask','happy','sleep'], kinds=['read','make','learn','body'];let h='';
+for(let i=0;i<4;i++)h+=`<div class="c" style="background:${Critter.HUES[i][3]}">${Critter.egg(i,kinds[i])}</div>`;
+for(let i=0;i<20;i++){const look={name:'x',shape:i%4,hue:i%6,stage:Math.min(4,Math.floor(i/4)),level:(i*3)%8,parts:parts.slice(0,Math.floor(i/3)).concat(i%5==0?[parts[5-(i%6)]]:[]).filter((v,k,a)=>a.indexOf(v)===k),patches:i%7==3?1:i%9==8?2:0};h+=`<div class="c" style="background:${Critter.HUES[look.hue][3]}">${Critter.critter(look,moods[i%4])}</div>`}
+document.getElementById('g').innerHTML=h;</script>

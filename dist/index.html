@@ -1,0 +1,1477 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#ECEEFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14112B" media="(prefers-color-scheme: dark)">
+<title>养一只</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* 一张贴纸本：浅紫蓝的点阵底，深靛的粗描边，硬投影。柠檬黄只给「现在该点的那个按钮」。 */
+  --bg: #ECEEFF; --dot: #D9DCF7; --card: #FFFFFF; --ink: #1E1A3C; --ink-2: #5C5980; --soft: #D5D8F2; --edge: #1E1A3C; --drop: #1E1A3C;
+  --pop: #FFD23F; --on-pop: #1E1A3C; --me: #DDF6EA; --hot: #E5325A; --ok: #1C9A68;
+  --display: 'ZCOOL KuaiLe', 'Yuanti SC', 'YouYuan', 'PingFang SC', sans-serif;
+  --body: 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  --spring: cubic-bezier(.2, 1.6, .4, 1);
+  /* 布局：所有宽度都是一条手机宽的单栏。它住在顶上那张会吸顶的卡里，说话时卡片收矮让出地方。 */
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #14112B; --dot: #1D1A3A; --card: #211D42; --ink: #F3F0FF; --ink-2: #ABA7CF; --soft: #37325F; --edge: #F3F0FF; --drop: #000; --pop: #FFD23F; --on-pop: #1E1A3C; --me: #1E4A3B; --hot: #FF7A98; --ok: #5FD9A8; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg: #14112B; --dot: #1D1A3A; --card: #211D42; --ink: #F3F0FF; --ink-2: #ABA7CF; --soft: #37325F; --edge: #F3F0FF; --drop: #000; --pop: #FFD23F; --on-pop: #1E1A3C; --me: #1E4A3B; --hot: #FF7A98; --ok: #5FD9A8; color-scheme: dark; }
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; }
+body { background: var(--bg) radial-gradient(var(--dot) 1.5px, transparent 1.6px) 0 0 / 18px 18px; color: var(--ink); font: 400 16px/1.65 var(--body); -webkit-text-size-adjust: 100%; }
+h1, h2, h3, p, ol, ul, figure { margin: 0; padding: 0; } ol, ul { list-style: none; }
+button, input, textarea { font: inherit; color: inherit; }
+.num { font-variant-numeric: tabular-nums; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 3px solid var(--hot); outline-offset: 2px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+#fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 30; }
+
+.app { max-width: 480px; margin: 0 auto; padding: 0 16px 56px; }
+.top { display: flex; align-items: center; gap: 4px; min-height: 54px; }
+.brand { display: inline-flex; align-items: center; gap: 8px; font: 400 1.5rem/1 var(--display); color: var(--ink); text-decoration: none; margin-right: auto; }
+.brand svg { flex: none; transition: transform .3s var(--spring); } .brand:hover svg { transform: rotate(-12deg) scale(1.1); }
+.navlink { background: none; border: 0; cursor: pointer; padding: 6px 10px; border-radius: 10px; color: var(--ink-2); text-decoration: none; font-size: .95rem; font-weight: 500; transition: background .15s, color .15s; }
+.navlink:hover, .navlink[aria-current="page"] { color: var(--ink); background: var(--card); }
+.linkbtn { background: none; border: 0; padding: 8px 6px; color: var(--ink-2); cursor: pointer; text-decoration: underline; text-underline-offset: 4px; font-size: .95rem; }
+.linkbtn:hover { color: var(--ink); }
+#view > * { animation: viewin .28s ease-out; }
+@keyframes viewin { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 46px; padding: 8px 18px; border: 2.5px solid var(--edge); border-radius: 14px; background: var(--card); cursor: pointer; font-weight: 500; line-height: 1.3; box-shadow: 3px 3px 0 var(--drop); transition: transform .09s, box-shadow .09s; }
+.btn:hover:not(:disabled) { box-shadow: 5px 5px 0 var(--drop); filter: brightness(1.04); }   /* 悬停时不挪位置：按钮从光标底下挪开会来回抖 */
+.btn:active:not(:disabled) { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--drop); }
+.btn:disabled { opacity: .45; cursor: default; box-shadow: none; }
+.btn.primary { background: var(--pop); color: var(--on-pop); border-color: #1E1A3C; }
+.btn.cta { width: 100%; min-height: 58px; font: 400 1.35rem/1.2 var(--display); border-radius: 18px; box-shadow: 4px 4px 0 var(--drop); }
+.btn.cta:hover:not(:disabled) { box-shadow: 6px 6px 0 var(--drop); }
+.btn.cta:active:not(:disabled) { transform: translate(4px, 4px); box-shadow: 0 0 0 var(--drop); }
+.btn.hot { color: var(--hot); border-color: var(--hot); box-shadow: 3px 3px 0 var(--hot); }
+.btn.small { min-height: 38px; padding: 4px 14px; font-size: .92rem; border-radius: 12px; box-shadow: 2px 2px 0 var(--drop); }
+.btns { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.sublinks { display: flex; justify-content: center; gap: 18px; margin-top: 6px; }
+.note { color: var(--ink-2); font-size: .9rem; }
+.err { color: var(--hot); font-size: .92rem; }
+
+/* 舞台：它住的那张卡。里面是一小片场景，字的颜色跟着昼夜走 */
+.stagewrap { position: sticky; top: 0; z-index: 5; padding: 6px 0 2px; margin: 0 -4px; padding-left: 4px; padding-right: 8px; background: linear-gradient(var(--bg) 82%, transparent); }
+.stage { position: relative; height: 252px; color: #1E1A3C; border: 2.5px solid #1E1A3C; border-radius: 26px; box-shadow: 5px 5px 0 var(--drop); overflow: hidden; transition: height .35s var(--spring); background: #fff; }
+.stage.night { color: #F6F3FF; }
+.stage.compact { height: 150px; }
+.stage .scene { position: absolute; inset: 0; width: 100%; height: 100%; }
+.stage .nameplate { position: absolute; left: 14px; right: 12px; top: 10px; display: flex; justify-content: space-between; align-items: center; gap: 10px; z-index: 2; pointer-events: none; }
+.nameplate h1 { font: 400 1.5rem/1.2 var(--display); overflow-wrap: anywhere; text-shadow: 0 2px 0 rgba(255, 255, 255, .5); }
+.stage.night .nameplate h1 { text-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+.pill { font-size: .78rem; font-weight: 500; padding: 1px 10px; border: 2px solid #1E1A3C; border-radius: 99px; background: #fff; color: #1E1A3C; white-space: nowrap; }
+.pill.sleep { background: #D9D7EE; }
+.actor { position: absolute; left: 50%; bottom: 44px; width: 172px; transform: translateX(-50%); background: none; border: 0; padding: 0; cursor: pointer; z-index: 1; transition: width .35s var(--spring), bottom .35s var(--spring); touch-action: manipulation; }
+.actor svg { display: block; width: 100%; height: auto; overflow: visible; }
+.stage.compact .actor { width: 104px; bottom: 30px; }
+.actor:focus-visible { outline-offset: 6px; border-radius: 20px; }
+.quip { position: absolute; left: 50%; top: 46px; transform: translateX(-50%); z-index: 3; background: #fff; color: #1E1A3C; border: 2.5px solid #1E1A3C; border-radius: 14px; padding: 2px 12px; font: 400 1rem/1.5 var(--display); white-space: nowrap; pointer-events: none; animation: quip 1.7s ease-out both; }
+@keyframes quip { 0% { opacity: 0; transform: translate(-50%, 8px) scale(.8); } 12% { opacity: 1; transform: translate(-50%, 0) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -6px); } }
+.growbar { position: absolute; left: 14px; right: 14px; bottom: 12px; display: flex; align-items: center; gap: 10px; font-size: .82rem; font-weight: 500; z-index: 2; color: #1E1A3C; }
+.stage.night .growbar { color: #F6F3FF; }
+.growbar .track { flex: 1; height: 14px; border: 2.5px solid #1E1A3C; border-radius: 99px; background: #fff; overflow: hidden; }
+.growbar .track i { display: block; height: 100%; background: linear-gradient(#3B3570, #1E1A3C); border-radius: 99px; transition: width .7s var(--spring); }
+.growbar.gain .track { animation: barglow .7s ease-out; }
+@keyframes barglow { 0% { box-shadow: 0 0 0 0 var(--pop); } 40% { box-shadow: 0 0 0 5px var(--pop); } 100% { box-shadow: 0 0 0 0 transparent; } }
+.stage.flash::after { content: ""; position: absolute; inset: 0; background: #fff; animation: flash .6s ease-out both; z-index: 4; pointer-events: none; }
+@keyframes flash { 0% { opacity: 0; } 25% { opacity: .95; } 100% { opacity: 0; } }
+.stage.mini { height: auto; aspect-ratio: 1; border-radius: 20px; box-shadow: 4px 4px 0 var(--drop); }
+.stage.mini .actor { width: 64%; bottom: 14%; cursor: inherit; pointer-events: none; }
+.stage.wide { height: 200px; } .stage.wide .actor { bottom: 28px; pointer-events: none; }
+
+/* 它的身体：表情靠 data-mood 切换，不重绘 */
+.critter .e-open, .critter .e-happy, .critter .e-sleep, .critter .m-smile, .critter .m-o, .critter .m-happy, .critter .m-flat, .critter .m-talk, .critter .zzz { display: none; }
+.critter[data-mood="awake"] .e-open, .critter[data-mood="ask"] .e-open, .critter[data-mood="think"] .e-open, .critter[data-mood="happy"] .e-happy, .critter[data-mood="sleep"] .e-sleep,
+.critter[data-mood="awake"] .m-smile, .critter[data-mood="ask"] .m-o, .critter[data-mood="happy"] .m-happy, .critter[data-mood="sleep"] .m-flat, .critter[data-mood="think"] .m-flat, .critter[data-mood="sleep"] .zzz { display: inline; }
+.critter.talking[data-mood="awake"] .m-smile, .critter.talking[data-mood="ask"] .m-o { display: none; }
+.critter.talking[data-mood="awake"] .m-talk, .critter.talking[data-mood="ask"] .m-talk { display: inline; transform-box: fill-box; transform-origin: center; animation: talk .17s ease-in-out infinite alternate; }
+@keyframes talk { from { transform: scale(1, .25); } to { transform: scale(1, 1); } }
+.critter[data-mood="sleep"] .cheeks { opacity: .45; }
+.critter .pupil { transform: translate(calc(var(--px, 0) * 1px), calc(var(--py, 0) * 1px)); transition: transform .2s ease-out; }
+.critter .blink { transform-box: fill-box; transform-origin: center; animation: blink 4.6s infinite; }
+@keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 96.5% { transform: scaleY(.08); } }
+.critter .idle { transform-box: fill-box; transform-origin: 50% 100%; animation: bob 3.2s ease-in-out infinite; }
+@keyframes bob { 0%, 100% { transform: translateY(0) scale(1, 1); } 50% { transform: translateY(-4px) scale(.995, 1.012); } }
+.critter[data-mood="sleep"] .idle { animation: breathe 4.4s ease-in-out infinite; }
+@keyframes breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.025, .97); } }
+.critter .p-tail { transform-box: fill-box; transform-origin: 10% 90%; animation: wag 1.1s ease-in-out infinite alternate; }
+@keyframes wag { from { transform: rotate(-7deg); } to { transform: rotate(9deg); } }
+.critter .p-wing { transform-box: fill-box; transform-origin: 95% 45%; animation: flap 1.9s ease-in-out infinite alternate; }
+@keyframes flap { from { transform: rotate(-5deg); } to { transform: rotate(10deg) scale(1.04); } }
+.critter .p-ant { transform-box: fill-box; transform-origin: 90% 100%; animation: sway 2.6s ease-in-out infinite alternate; }
+@keyframes sway { from { transform: rotate(-6deg); } to { transform: rotate(6deg); } }
+.critter[data-mood="sleep"] .p-tail, .critter[data-mood="sleep"] .p-wing, .critter[data-mood="sleep"] .p-ant { animation-play-state: paused; }
+.critter .zzz text { animation: zzz 2.6s ease-in-out infinite; } .critter .zzz text:last-child { animation-delay: .9s; }
+@keyframes zzz { 0%, 100% { opacity: .15; translate: 0 4px; } 50% { opacity: 1; translate: 0 -3px; } }
+.critter .act { transform-box: fill-box; transform-origin: 50% 100%; }
+.critter.poke .act { animation: poke .45s var(--spring); }
+@keyframes poke { 0% { transform: scale(1, 1); } 30% { transform: scale(1.14, .82); } 60% { transform: scale(.94, 1.08); } 100% { transform: scale(1, 1); } }
+.critter.gulp .act { animation: gulp .55s ease-out; }
+@keyframes gulp { 0% { transform: scale(1, 1); } 25% { transform: scale(.9, 1.12); } 55% { transform: scale(1.16, .88); } 100% { transform: scale(1, 1); } }
+.critter.jump .act { animation: jump .75s ease-out; }
+@keyframes jump { 0% { transform: translateY(0) scale(1.1, .86); } 30% { transform: translateY(-34px) scale(.94, 1.08); } 55% { transform: translateY(0) scale(1.12, .86); } 75% { transform: translateY(-10px) scale(.98, 1.03); } 100% { transform: translateY(0) scale(1, 1); } }
+.critter.shakey .act { animation: shakey .11s linear infinite; }
+@keyframes shakey { 0%, 100% { transform: translateX(-3px) rotate(-2.5deg); } 50% { transform: translateX(3px) rotate(2.5deg); } }
+.critter.popin .act { animation: popin .6s var(--spring) both; }
+@keyframes popin { from { transform: scale(.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.critter .newpart { transform-box: fill-box; transform-origin: center; animation: partpop .8s var(--spring) .35s both; }
+@keyframes partpop { from { transform: scale(0); } to { transform: scale(1); } }
+.eggsvg .eggbody { transform-box: fill-box; transform-origin: 50% 100%; animation: wobble 2.6s ease-in-out infinite; }
+@keyframes wobble { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+.eggsvg.hit .eggbody { animation: hit .32s ease-out; }
+@keyframes hit { 0% { transform: rotate(0) scale(1); } 20% { transform: rotate(-9deg) scale(1.06, .94); } 50% { transform: rotate(8deg); } 80% { transform: rotate(-4deg); } 100% { transform: rotate(0); } }
+.scene .star { animation: twinkle 2.6s ease-in-out infinite; }
+@keyframes twinkle { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+.scene .cloud path { animation: drift 26s ease-in-out infinite alternate; }
+@keyframes drift { from { translate: -16px 0; } to { translate: 22px 0; } }
+.scene .dropin { animation: dropin .7s var(--spring) both; }
+@keyframes dropin { from { translate: 0 -60px; opacity: 0; } to { translate: 0 0; opacity: 1; } }
+
+/* 引导 */
+.ob { display: grid; gap: 16px; padding-top: 4px; }
+.dots { display: flex; gap: 6px; justify-content: center; }
+.dots i { width: 22px; height: 6px; border-radius: 99px; background: var(--soft); transition: background .3s; } .dots i.on { background: var(--edge); }
+.ob h1 { font: 400 clamp(1.8rem, 8vw, 2.3rem)/1.25 var(--display); text-wrap: balance; }
+.ob .lead { color: var(--ink-2); margin-top: -8px; }
+.eggstage { height: 236px; } .eggstage .actor { width: 150px; bottom: 26px; }
+.eggstage.big { height: 320px; } .eggstage.big .actor { width: 200px; bottom: 44px; }
+.taphint { position: absolute; left: 0; right: 0; bottom: 10px; text-align: center; font: 400 1rem/1.4 var(--display); color: #1E1A3C; animation: pulse 1.2s ease-in-out infinite alternate; z-index: 2; pointer-events: none; }
+.stage.night .taphint { color: #F6F3FF; }
+@keyframes pulse { from { opacity: .35; } to { opacity: 1; } }
+.field { display: grid; gap: 8px; }
+.field label, .field .lab { font: 400 1.2rem/1.3 var(--display); }
+.field .hint { font-size: .86rem; color: var(--ink-2); }
+input[type="text"], textarea { width: 100%; min-height: 50px; background: var(--card); border: 2.5px solid var(--edge); border-radius: 14px; padding: 10px 14px; transition: box-shadow .15s; }
+input[type="text"]:focus { outline: none; box-shadow: 0 0 0 4px var(--pop); }
+input::placeholder, textarea::placeholder { color: var(--ink-2); opacity: .75; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { border: 2px solid var(--edge); background: var(--card); border-radius: 99px; padding: 5px 14px; cursor: pointer; font-size: .92rem; min-height: 38px; text-align: left; transition: background .12s, transform .09s; }
+.chip:hover, .chip[aria-pressed="true"] { background: var(--pop); color: var(--on-pop); border-color: #1E1A3C; }
+.chip:active { transform: scale(.95); }
+.levels { display: grid; gap: 10px; }
+.level { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 0 10px; align-items: center; padding: 10px 14px 10px 10px; background: var(--card); border: 2.5px solid var(--edge); border-radius: 16px; animation: rise .35s var(--spring) both; }
+.level:nth-child(2) { animation-delay: .07s; } .level:nth-child(3) { animation-delay: .14s; } .level:nth-child(4) { animation-delay: .21s; } .level:nth-child(5) { animation-delay: .28s; }
+.level .i { width: 32px; height: 32px; border-radius: 50%; background: var(--edge); color: var(--bg); display: grid; place-items: center; font: 400 1.05rem/1 var(--display); }
+.level .nm { font: 400 1.15rem/1.35 var(--display); overflow-wrap: anywhere; }
+.level .dw { color: var(--ink-2); font-size: .86rem; overflow-wrap: anywhere; }
+.level .two { display: grid; gap: 6px; } .level .two input { min-height: 42px; padding: 6px 10px; } .level .two input:last-child { font-size: .88rem; }
+.namerow { display: flex; gap: 10px; align-items: center; } .namerow input { flex: 1; min-width: 0; }
+
+/* 对话 */
+.thread { display: grid; gap: 10px; margin-top: 14px; }
+.msg { position: relative; max-width: 90%; padding: 10px 14px; border: 2.5px solid var(--edge); border-radius: 18px; overflow-wrap: anywhere; white-space: pre-line; }
+.msg.pet { justify-self: start; background: var(--card); box-shadow: 3px 3px 0 var(--drop); }
+.msg.pet.lead { border-top-left-radius: 6px; }
+.msg.pet.lead::before { content: ""; position: absolute; left: 20px; top: -12px; width: 18px; height: 12px; background: var(--edge); clip-path: polygon(0 100%, 50% 0, 100% 100%); }
+.msg.pet.lead::after { content: ""; position: absolute; left: 23.5px; top: -6.5px; width: 11px; height: 8px; background: var(--card); clip-path: polygon(0 100%, 50% 0, 100% 100%); }
+.msg.me { justify-self: end; background: var(--me); border-bottom-right-radius: 6px; }
+.msg .rest { visibility: hidden; }
+.msg .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.msg.new, .sys.new { animation: rise .3s var(--spring) both; }
+@keyframes rise { from { transform: translateY(10px) scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
+.msg.thinking { display: flex; gap: 6px; padding: 14px 16px; }
+.msg.thinking i { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-2); animation: think 1s ease-in-out infinite; } .msg.thinking i:nth-child(2) { animation-delay: .15s; } .msg.thinking i:nth-child(3) { animation-delay: .3s; }
+@keyframes think { 0%, 60%, 100% { transform: translateY(0); opacity: .4; } 30% { transform: translateY(-6px); opacity: 1; } }
+.sys { justify-self: center; text-align: center; font-size: .86rem; color: var(--ink-2); padding: 0 12px; max-width: 100%; overflow-wrap: anywhere; }
+.sys b { color: var(--ok); font-weight: 500; }
+.nextnote { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding: 10px 6px 10px 14px; border: 2.5px dashed var(--edge); border-radius: 16px; background: color-mix(in srgb, var(--card) 55%, transparent); }
+.nextnote .k { font-size: .78rem; font-weight: 500; color: var(--ink-2); }
+.nextnote .v { font: 400 1.15rem/1.4 var(--display); overflow-wrap: anywhere; } .nextnote .v.empty { color: var(--ink-2); }
+.nextnote > div { flex: 1; min-width: 0; }
+.composer { margin-top: 16px; display: grid; gap: 10px; }
+.inrow { display: flex; gap: 8px; align-items: stretch; } .inrow input { flex: 1; min-width: 0; } .inrow .btn { flex: none; }
+.composer .hint { font-size: .85rem; color: var(--ink-2); text-align: center; }
+
+/* 两行「可以不看」的入口 */
+.rows { margin-top: 26px; display: grid; gap: 10px; }
+.row { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 12px 14px; background: var(--card); border: 2px solid var(--soft); border-radius: 16px; cursor: pointer; transition: border-color .15s, transform .09s; }
+.row:hover { border-color: var(--edge); } .row:active { transform: scale(.985); }
+.row .t { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 500; } .row .c { color: var(--ink-2); font-size: .9rem; white-space: nowrap; } .row .c::after { content: " ›"; }
+.row .ic { display: flex; } .row .ic .glyph { margin-left: -8px; } .row .ic .glyph:first-child { margin-left: 0; }
+
+/* 弹层 */
+.sheet-wrap { position: fixed; inset: 0; background: rgba(20, 17, 43, .6); display: grid; align-items: end; justify-items: center; z-index: 10; overflow-y: auto; animation: fade .2s ease-out; }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+.sheet { position: relative; width: 100%; max-width: 480px; background: var(--bg); border-top: 2.5px solid var(--edge); border-radius: 26px 26px 0 0; padding: 26px 18px 26px; display: grid; gap: 14px; max-height: 100%; overflow-y: auto; animation: sheetup .34s var(--spring); }
+.sheet::before { content: ""; position: absolute; left: 50%; top: 9px; width: 44px; height: 5px; margin-left: -22px; border-radius: 99px; background: var(--soft); }
+@keyframes sheetup { from { transform: translateY(60px); opacity: .4; } to { transform: none; opacity: 1; } }
+@media (min-width: 640px) { .sheet-wrap { align-items: center; padding: 24px; } .sheet { border: 2.5px solid var(--edge); border-radius: 26px; box-shadow: 6px 6px 0 var(--drop); padding: 26px 24px 24px; } .sheet::before { display: none; } }
+.sheet h2 { font: 400 1.6rem/1.3 var(--display); text-wrap: balance; }
+.sheet p { overflow-wrap: anywhere; }
+.sheet section { display: grid; gap: 8px; } .sheet section + section { border-top: 2px solid var(--soft); padding-top: 12px; }
+.sheet .lab { font-size: .85rem; font-weight: 500; color: var(--ink-2); }
+.eyebrow { font-size: .85rem; font-weight: 500; color: var(--ink-2); }
+#toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--edge); color: var(--bg); padding: 10px 18px; border-radius: 14px; max-width: calc(100% - 32px); opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 20; text-align: center; }
+#toast.on { opacity: 1; }
+
+/* 路线：一条往上走的小路 */
+.trail { display: grid; }
+.trail li { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 0 12px; position: relative; padding-bottom: 16px; }
+.trail li::before { content: ""; position: absolute; left: 23px; top: 46px; bottom: 0; border-left: 3px dashed var(--soft); }
+.trail li:last-child::before { display: none; } .trail li:last-child { padding-bottom: 0; }
+.trail .node { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; border: 2.5px solid var(--edge); background: var(--card); font: 400 1.15rem/1 var(--display); overflow: hidden; }
+.trail .todo .node { border-style: dashed; border-color: var(--ink-2); color: var(--ink-2); background: transparent; }
+.trail .cur .node { box-shadow: 3px 3px 0 var(--drop); } .trail .cur .node svg { width: 40px; height: auto; margin-top: 4px; }
+.trail .nm { font: 400 1.15rem/1.4 var(--display); overflow-wrap: anywhere; padding-top: 8px; } .trail .todo .nm { color: var(--ink-2); }
+.trail .dw { color: var(--ink-2); font-size: .86rem; overflow-wrap: anywhere; }
+.trail .shell { margin-top: 6px; font-size: .9rem; padding: 8px 12px; border: 2px dashed var(--soft); border-radius: 12px; white-space: pre-line; overflow-wrap: anywhere; }
+.trail .tagnow { display: inline-block; font: 500 .72rem/1.6 var(--body); padding: 0 8px; margin-left: 6px; border-radius: 99px; background: var(--pop); color: var(--on-pop); vertical-align: 3px; }
+
+/* 宝贝：一格一格的收藏 */
+.grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.slot { display: grid; justify-items: center; gap: 2px; padding: 10px 4px 8px; border: 2px solid var(--edge); border-radius: 16px; background: var(--card); text-align: center; font-size: .72rem; line-height: 1.35; }
+.slot.new { background: var(--pop); color: var(--on-pop); border-color: #1E1A3C; animation: rise .4s var(--spring) both; }
+.slot.none { border-style: dashed; border-color: var(--soft); background: transparent; color: var(--ink-2); font: 400 1.3rem/1 var(--display); min-height: 76px; place-content: center; }
+
+/* 成长证书 */
+.cert { border: 2.5px solid var(--edge); border-radius: 22px; background: var(--card); padding: 12px; display: grid; gap: 10px; box-shadow: 4px 4px 0 var(--drop); }
+.cert .who { font: 400 1.5rem/1.3 var(--display); } .cert .what { overflow-wrap: anywhere; }
+.cert .facts { display: flex; flex-wrap: wrap; gap: 6px; }
+.fact { font-size: .82rem; padding: 2px 10px; border-radius: 99px; background: var(--bg); border: 2px solid var(--soft); }
+
+/* 日记、栖地 */
+.page { display: grid; gap: 16px; }
+.page h1 { font: 400 2rem/1.3 var(--display); }
+.page h2 { font: 400 1.3rem/1.35 var(--display); overflow-wrap: anywhere; }
+.stagehead { font: 400 1.05rem/1.4 var(--display); padding: 6px 0; border-bottom: 2.5px solid var(--edge); margin-top: 10px; }
+.log { padding: 12px 0; border-bottom: 2px solid var(--soft); display: grid; gap: 4px; }
+.log .when { color: var(--ink-2); font-size: .82rem; }
+.log .tx { overflow-wrap: anywhere; white-space: pre-line; }
+.log .qa { padding-left: 10px; border-left: 3px solid var(--soft); font-size: .92rem; overflow-wrap: anywhere; } .log .qa .qq { color: var(--ink-2); }
+.log .nx { font-size: .88rem; color: var(--ink-2); overflow-wrap: anywhere; }
+.shellcard { padding: 10px 14px; margin: 10px 0 0; border: 2.5px dashed var(--edge); border-radius: 16px; background: color-mix(in srgb, var(--card) 55%, transparent); }
+.shellcard .k { font-size: .82rem; font-weight: 500; color: var(--ink-2); } .shellcard p { white-space: pre-line; overflow-wrap: anywhere; }
+.bondbig { font: 400 1.8rem/1.2 var(--display); }
+.homes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 16px; }
+.home { display: grid; gap: 6px; align-content: start; background: none; border: 0; padding: 0; text-align: left; cursor: pointer; transition: transform .12s; }
+.home:hover .stage { box-shadow: 6px 6px 0 var(--drop); } .home:active { transform: scale(.97); }
+.home .nm { font: 400 1.15rem/1.3 var(--display); } .home .d { color: var(--ink-2); font-size: .82rem; overflow-wrap: anywhere; }
+.tag { display: inline-block; font-size: .74rem; font-weight: 500; padding: 0 8px; border: 2px solid currentColor; border-radius: 99px; margin-right: 6px; vertical-align: 2px; }
+.tag.grown { color: var(--ok); } .tag.released { color: var(--ink-2); } .tag.now { color: var(--hot); }
+.switch { display: inline-flex; border: 2.5px solid var(--edge); border-radius: 99px; overflow: hidden; }
+.switch button { border: 0; background: var(--card); padding: 4px 16px; cursor: pointer; font-weight: 500; } .switch button[aria-pressed="true"] { background: var(--edge); color: var(--bg); }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+.ai-only { display: none !important; }
+body.ai-on .ai-only { display: revert !important; }
+body.ai-on .btn.ai-only { display: inline-flex !important; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <a class="brand" href="#pet"><svg viewBox="0 0 24 28" width="20" height="24" aria-hidden="true"><path d="M12,2 C18,2 22,11 22,17 C22,23 18,26 12,26 C6,26 2,23 2,17 C2,11 6,2 12,2Z" fill="#FFD23F" stroke="#1E1A3C" stroke-width="2.4"/><path d="M3,15 L7,12 L11,15 L15,12 L19,15 L21.5,13.5" fill="none" stroke="#1E1A3C" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>养一只</a>
+    <nav id="nav" aria-label="主导航"></nav>
+  </header>
+  <main id="view"></main>
+</div>
+<div id="sheet" class="sheet-wrap" hidden></div>
+<div id="live" class="sr" aria-live="polite"></div>
+<canvas id="fx" aria-hidden="true"></canvas>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+/* 养一只 · 规则引擎
+ * 纯函数：不碰界面，不读时钟，时间都由调用方传入 now（毫秒）。
+ * 它长大的唯一来源是「见闻」，见闻只能靠讲述真实做过的事得到。聊天不长个儿。
+ * 它不会饿、不会病、不会死：你不来，它只是睡了。
+ */
+(function (root) {
+  'use strict';
+  const DAY = 86400e3, HOUR = 3600e3;
+  const DEFAULT = {
+    // 见闻：大头给「留下东西」（回答它的问题、和它约好下一步），不给自报的时长
+    xp: { s: 2, m: 2, l: 2, answer: 2, promise: 2 },   // 讲一次固定 2 点；s/m/l 只用来决定它长出什么，不再让用户自己报
+    sameDay: [1, 0.5],                         // 同一天第 2 次减半，第 3 次起固定 1 点
+    startXp: 3,                                // 孵出来并约好第一步，本身就是一次推进
+    // 攒的话：离开越久，回来第一次讲述的见闻越多，但永远比不上天天来
+    litter: { free: 1, k: 0.5, capDays: 30 },
+    // 每一段内的等级：升一级要 4、6、8…点见闻，最高 7 级
+    levelBase: 4, levelStep: 2, maxLevel: 7, overflowHours: 6,
+    // 好奇心：它醒着的时候自己攒，攒够了就出门捡一样东西回窝
+    rateBase: 2, rateLevel: 3, stageMul: 1.5, bondBonus: 0.05, trinketBonus: 0.1,
+    trinketCost: 40, trinketGrow: 1.6,
+    // 醒着：约好了下一步能醒 3 天，没约只醒一半
+    awakeDays: 3, noPromise: 0.5,
+    freshDays: 2, freshMul: 2,                 // 刚蜕完壳的两天，好奇心翻倍
+    bondDiv: 200,                              // 蜕变得到的羁绊 = √(这一段的好奇心 / 200)
+    patchGap: 5,                               // 隔了 5 天以上又回来：它身上多一块补丁（奖章，不是污点）
+    parts: ['eyes', 'horns', 'wings', 'antenna', 'tail', 'plates'],
+  };
+  let CFG = JSON.parse(JSON.stringify(DEFAULT));
+  function configure(over) { CFG = JSON.parse(JSON.stringify(DEFAULT)); if (over) Object.assign(CFG, over); return CFG; }
+
+  function create() { return { v: 2, rev: 0, savedAt: 0, lang: 'zh', offset: 0, bond: 0, goal: null, logs: [], habitat: [] }; }
+  const blankStat = () => ({ s: 0, m: 0, l: 0, ans: 0 });
+
+  function newGoal(s, now, o) {
+    const g = {
+      id: 'g' + now.toString(36), title: o.title, why: o.why || '', kind: o.kind || 'make', style: o.style || 'curious', name: o.name,
+      hue: o.hue | 0, shape: o.shape | 0, createdAt: now,
+      miles: o.miles.map(m => ({ name: m.name, doneWhen: m.doneWhen || '', doneAt: 0, card: null })), cur: 0,
+      promise: { text: o.promise || '', at: o.promise ? now : 0 },
+      xp: CFG.startXp, n: 0, earned: 0, life: 0, trinkets: 0, unseen: 0, parts: [], patches: 0, stat: blankStat(),
+      lastTick: now, awakeUntil: now + CFG.awakeDays * DAY * (o.promise ? 1 : CFG.noPromise), freshUntil: 0, lastAdvAt: 0, stageAdv: 0, adv: 0, welcome: null,
+    };
+    s.goal = g; return g;
+  }
+
+  /* 等级：由这一段攒下的见闻推出来 */
+  function levelInfo(xp) {
+    let lv = 0, left = xp, need = CFG.levelBase;
+    while (lv < CFG.maxLevel && left >= need) { left -= need; lv++; need = CFG.levelBase + CFG.levelStep * lv; }
+    return { level: lv, into: lv >= CFG.maxLevel ? 0 : left, need: lv >= CFG.maxLevel ? 0 : need, max: lv >= CFG.maxLevel };
+  }
+  const levelOf = g => levelInfo(g.xp).level;
+  const baseRate = s => { const g = s.goal; return (CFG.rateBase + CFG.rateLevel * levelOf(g)) * Math.pow(CFG.stageMul, g.cur) * (1 + CFG.bondBonus * s.bond) * (1 + CFG.trinketBonus * g.trinkets); };
+  const isAwake = (g, now) => now < g.awakeUntil;
+  const isFresh = (g, now) => now < g.freshUntil;
+  const rate = (s, now) => isAwake(s.goal, now) ? baseRate(s) * (isFresh(s.goal, now) ? CFG.freshMul : 1) : 0;
+  const trinketCost = g => CFG.trinketCost * Math.pow(CFG.trinketGrow, g.trinkets);
+
+  /* 把 lastTick 到 now 之间它自己攒的好奇心结算掉，顺便算它出门捡了几样东西 */
+  function tick(s, now) {
+    const g = s.goal; if (!g || now <= g.lastTick) return 0;
+    let t = g.lastTick, found = 0; const end = Math.min(now, g.awakeUntil);
+    for (let guard = 0; t < end && guard < 400; guard++) {
+      const fresh = t < g.freshUntil, segEnd = fresh ? Math.min(end, g.freshUntil) : end;
+      const r = baseRate(s) * (fresh ? CFG.freshMul : 1) / HOUR, need = trinketCost(g) - g.n;
+      if (need <= 0) { g.n -= trinketCost(g); g.trinkets++; found++; continue; }
+      const dt = need / r;
+      if (t + dt <= segEnd) { g.n += need; g.earned += need; g.life += need; t += dt; }
+      else { const gain = (segEnd - t) * r; g.n += gain; g.earned += gain; g.life += gain; t = segEnd; }
+    }
+    while (g.n >= trinketCost(g)) { g.n -= trinketCost(g); g.trinkets++; found++; }
+    g.unseen += found; g.lastTick = now; return found;
+  }
+
+  const dayKey = (ms, tz) => Math.floor((ms - (tz || 0) * 60e3) / DAY);
+  const gapDays = (g, now) => g.lastAdvAt ? Math.max(0, (now - g.lastAdvAt) / DAY) : 0;
+  function litterMul(s, now) { const L = CFG.litter, d = Math.min(gapDays(s.goal, now), L.capDays); return 1 + L.k * Math.sqrt(Math.max(0, d - L.free)); }
+  function sameDayFactor(s, now, tz) {
+    const g = s.goal, k = dayKey(now, tz), c = s.logs.filter(l => l.goalId === g.id && dayKey(l.at, tz) === k).length;
+    return c < CFG.sameDay.length ? CFG.sameDay[c] : 0;
+  }
+  const scaled = (base, f, mult) => f === 0 ? 1 : Math.max(1, Math.round(base * f * mult));
+  function preview(s, now, size, tz) { const mult = litterMul(s, now), f = sameDayFactor(s, now, tz); return { xp: scaled(CFG.xp[size], f, mult), mult, factor: f, gap: gapDays(s.goal, now) }; }
+
+  function addXp(s, n) {
+    const g = s.goal, a = levelInfo(g.xp);
+    if (a.max) { g.n += n * CFG.overflowHours * baseRate(s); return false; }   // 满级后，见闻直接变成好奇心
+    g.xp += n; return levelOf(g) > a.level;
+  }
+  /* 讲述：告诉它这次做了什么 */
+  function report(s, now, { text, size, tz }) {
+    const g = s.goal; tick(s, now);
+    const p = preview(s, now, size, tz), patched = !!g.lastAdvAt && p.gap >= CFG.patchGap && g.patches < 2;
+    if (patched) g.patches++;
+    const up = addXp(s, p.xp);
+    g.lastAdvAt = now; g.stageAdv++; g.adv++; g.stat[size]++; g.welcome = null;
+    g.awakeUntil = Math.max(g.awakeUntil, now + CFG.awakeDays * CFG.noPromise * DAY);
+    const log = { id: 'l' + now.toString(36) + g.adv, goalId: g.id, stage: g.cur, at: now, text, size, reply: '', q: '', a: '', next: '', xp: p.xp, mult: p.mult, factor: p.factor, gap: p.gap, patched };
+    s.logs.push(log); return { log, up };
+  }
+  /* 回答它问的那一句 */
+  function answer(s, now, logId, q, a) {
+    const log = s.logs.find(l => l.id === logId); if (!log || log.a) return { xp: 0, up: false };
+    const add = scaled(CFG.xp.answer, log.factor, log.mult); log.q = q; log.a = a; log.xp += add; s.goal.stat.ans++;
+    return { xp: add, up: addXp(s, add) };
+  }
+  /* 约定下一步。跟在一次讲述后面的约定才有见闻；单独改约定只会让它醒足 3 天 */
+  function promise(s, now, text, logId) {
+    const g = s.goal; tick(s, now); text = text.trim(); g.promise = { text, at: now }; g.welcome = null;
+    let add = 0, up = false; const log = logId && s.logs.find(l => l.id === logId);
+    if (text && log && !log.next) { add = scaled(CFG.xp.promise, log.factor, log.mult); log.next = text; log.xp += add; up = addXp(s, add); }
+    if (text && g.lastAdvAt) g.awakeUntil = Math.max(g.awakeUntil, g.lastAdvAt + CFG.awakeDays * DAY);
+    return { xp: add, up };
+  }
+
+  const bondGain = g => g.stageAdv > 0 ? Math.max(1, Math.floor(Math.sqrt(g.earned / CFG.bondDiv))) : 0;
+  /* 这一段你是怎么做的，决定它长出什么 */
+  function pickPart(g) {
+    const st = g.stat, n = Math.max(1, st.s + st.m + st.l);
+    const score = { eyes: st.ans / n * 1.2, horns: st.l / n, wings: st.s / n, antenna: st.m / n * 0.9, tail: 0.3, plates: 0.25 };
+    return CFG.parts.filter(p => !g.parts.includes(p)).sort((a, b) => score[b] - score[a])[0] || null;
+  }
+  const lookOf = g => ({ name: g.name, shape: g.shape, hue: g.hue, kind: g.kind, stage: g.cur, level: levelOf(g), parts: g.parts.slice(), patches: g.patches });
+  function settle(s, now, result, extra) {
+    const g = s.goal;
+    s.habitat.push(Object.assign({ id: g.id, title: g.title, look: lookOf(g), createdAt: g.createdAt, endedAt: now, result, adv: g.adv, trinkets: g.trinkets,
+      miles: g.miles.map(m => ({ name: m.name, doneAt: m.doneAt, card: m.card })) }, extra || {}));
+    s.goal = null;
+  }
+  /* 这一段做完了：蜕变。返回 {bond, part, done} */
+  function molt(s, now, card) {
+    const g = s.goal; tick(s, now); const bond = bondGain(g), part = pickPart(g);
+    s.bond += bond; if (part) g.parts.push(part);
+    const m = g.miles[g.cur]; m.doneAt = now; m.card = Object.assign({ bond, part, adv: g.stageAdv }, card || {});
+    g.cur++; g.welcome = null;
+    const done = g.cur >= g.miles.length;
+    if (done) { g.xp = 0; settle(s, now, 'grown'); }
+    else { g.xp = 0; g.earned = 0; g.stageAdv = 0; g.stat = blankStat(); g.freshUntil = now + CFG.freshDays * DAY; g.lastTick = now; }
+    return { bond, part, done };
+  }
+  /* 体面地放下：放归野外，羁绊照拿 */
+  function release(s, now, reason) { const g = s.goal; tick(s, now); const bond = bondGain(g); s.bond += bond; settle(s, now, 'released', { reason: reason || '' }); return { bond }; }
+
+  const api = { DAY, HOUR, get CFG() { return CFG; }, configure, create, newGoal, levelInfo, levelOf, baseRate, rate, isAwake, isFresh, trinketCost, tick,
+    dayKey, gapDays, litterMul, sameDayFactor, preview, report, answer, promise, bondGain, pickPart, lookOf, molt, release };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Pet = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* 养一只 · 形象、场景、宝贝
+ * 全部是 SVG，不用任何图片。
+ * 伙伴 = 体型 × 颜色 × 长出的部位 × 补丁 × 等级斑点。每种表情都画在同一张 SVG 里，
+ * 换表情只改根节点的 data-mood，不重绘；眼珠的位置由两个 CSS 变量控制，所以它能看着你。
+ * 所有会动的部位都用 transform-box: fill-box 定轴，不依赖画布坐标。
+ */
+(function (root) {
+  'use strict';
+  const INK = '#1E1A3C';
+  // [身体, 肚皮/浅色, 深色, 白天的天色]
+  const HUES = [
+    ['#FF7B5A', '#FFD8CA', '#D9532F', '#FFE9B0'], ['#4FD1A1', '#D2F6E7', '#249C72', '#FFDDE9'], ['#5AB0FF', '#D6EBFF', '#2B7FD1', '#FFF0A8'],
+    ['#FFCF3A', '#FFF2C2', '#D99E00', '#D5E6FF'], ['#A98BFF', '#E7DEFF', '#7654E0', '#D2F5E1'], ['#FF85B8', '#FFDBEA', '#E0508C', '#D5EEFF'],
+  ];
+  const SHAPES = [
+    { d: 'M120,74 C164,74 192,104 192,142 C192,182 162,208 120,208 C78,208 48,182 48,142 C48,104 76,74 120,74Z', top: 74, eye: 132, xl: 48, xr: 192, sy: 146 },
+    { d: 'M120,52 C156,52 176,82 176,120 L176,160 C176,192 152,210 120,210 C88,210 64,192 64,160 L64,120 C64,82 84,52 120,52Z', top: 52, eye: 112, xl: 64, xr: 176, sy: 142 },
+    { d: 'M120,66 C150,66 166,96 176,134 C188,178 164,210 120,210 C76,210 52,178 64,134 C74,96 90,66 120,66Z', top: 66, eye: 124, xl: 60, xr: 180, sy: 158 },
+    { d: 'M88,70 L152,70 C176,70 188,84 188,108 L188,172 C188,196 174,210 150,210 L90,210 C66,210 52,196 52,172 L52,108 C52,84 64,70 88,70Z', top: 70, eye: 124, xl: 52, xr: 188, sy: 146 },
+  ];
+  const S = 'stroke="' + INK + '" stroke-linejoin="round" stroke-linecap="round"';
+  const flip = s => '<g transform="translate(240,0) scale(-1,1)">' + s + '</g>';
+  let uid = 0;
+
+  function critter(look, mood, opt) {
+    opt = opt || {};
+    const sh = SHAPES[look.shape % SHAPES.length], [body, light, dark] = HUES[look.hue % HUES.length], has = p => look.parts.indexOf(p) >= 0;
+    const big = has('eyes'), ey = sh.eye, r = big ? 17 : 12, my = ey + (big ? 26 : 22), id = 'dc' + (++uid);
+    const sc = Math.min(1, 0.72 + look.stage * 0.06 + look.level * 0.015), fresh = opt.fresh || '';
+    const np = p => p === fresh ? ' newpart' : '';
+    let o = '';
+    if (has('tail')) o += `<g class="p-tail${np('tail')}"><path d="M${sh.xr - 14},192 C${sh.xr + 34},200 ${sh.xr + 42},162 ${sh.xr + 22},150" fill="none" ${S} stroke-width="17"/><path d="M${sh.xr - 14},192 C${sh.xr + 34},200 ${sh.xr + 42},162 ${sh.xr + 22},150" fill="none" stroke="${body}" stroke-width="8" stroke-linecap="round"/><circle cx="${sh.xr + 21}" cy="148" r="10" fill="${dark}" ${S} stroke-width="5"/></g>`;
+    if (has('wings')) { const w = `<g class="p-wing${np('wings')}"><path d="M${sh.xl + 12},${sh.sy - 12} C${sh.xl - 40},${sh.sy - 54} ${sh.xl - 54},${sh.sy + 4} ${sh.xl - 24},${sh.sy + 16} C${sh.xl - 34},${sh.sy + 36} ${sh.xl - 4},${sh.sy + 36} ${sh.xl + 12},${sh.sy + 14}Z" fill="${light}" ${S} stroke-width="5"/></g>`; o += w + flip(w); }
+    o += `<ellipse cx="98" cy="209" rx="15" ry="9" fill="${dark}" ${S} stroke-width="5"/><ellipse cx="142" cy="209" rx="15" ry="9" fill="${dark}" ${S} stroke-width="5"/>`;
+    o += `<path d="${sh.d}" fill="${body}" ${S} stroke-width="6"/><ellipse cx="120" cy="174" rx="34" ry="27" fill="${light}"/>`;
+    o += `<path d="M${sh.xl + 22},${sh.top + 30} Q${sh.xl + 26},${sh.top + 14} ${sh.xl + 44},${sh.top + 10}" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" opacity=".45"/>`;
+    if (has('plates')) { o += `<g class="${np('plates').trim()}">`; for (const y of [158, 172, 186]) o += `<path d="M${y === 172 ? 96 : 102},${y} Q120,${y + 10} ${y === 172 ? 144 : 138},${y}" fill="none" stroke="${dark}" stroke-width="4" stroke-linecap="round"/>`; o += '</g>'; }
+    const spots = [[86, 30], [152, 26], [120, 14], [100, 22], [140, 38], [74, 52], [166, 50]];
+    for (let i = 0; i < Math.min(look.level, spots.length); i++) o += `<circle cx="${spots[i][0]}" cy="${sh.top + spots[i][1]}" r="${4 + (i % 2)}" fill="${dark}" opacity=".75"/>`;
+    if (look.patches > 0) o += `<g transform="rotate(-12 ${sh.xl + 30} ${sh.sy + 24})"><rect x="${sh.xl + 16}" y="${sh.sy + 12}" width="26" height="24" rx="5" fill="#FFF6DC" ${S} stroke-width="3" stroke-dasharray="5 4"/></g>`;
+    if (look.patches > 1) o += `<g transform="rotate(14 ${sh.xr - 34} ${sh.sy + 34})"><rect x="${sh.xr - 46}" y="${sh.sy + 24}" width="22" height="20" rx="5" fill="#D9F2FF" ${S} stroke-width="3" stroke-dasharray="5 4"/></g>`;
+    o += `<g class="cheeks"><ellipse cx="80" cy="${ey + 17}" rx="9" ry="6" fill="#FF8FA8" opacity=".75"/><ellipse cx="160" cy="${ey + 17}" rx="9" ry="6" fill="#FF8FA8" opacity=".75"/></g>`;
+    // 眼睛：睁着（眼珠会动）、笑眯、闭着
+    let open = '', happy = '', sleep = '';
+    for (const x of [94, 146]) {
+      open += `<circle cx="${x}" cy="${ey}" r="${r}" fill="#fff" ${S} stroke-width="4"/><g class="pupil"><circle cx="${x + 1}" cy="${ey}" r="${big ? 8 : 6}" fill="${INK}"/><circle cx="${x + 4}" cy="${ey - 3}" r="${big ? 3 : 2.2}" fill="#fff"/></g>`;
+      happy += `<path d="M${x - 10},${ey + 3} Q${x},${ey - 12} ${x + 10},${ey + 3}" fill="none" ${S} stroke-width="5"/>`;
+      sleep += `<path d="M${x - 10},${ey} Q${x},${ey + 9} ${x + 10},${ey}" fill="none" ${S} stroke-width="5"/>`;
+    }
+    o += `<g class="e-open${np('eyes')}"><g class="blink">${open}</g></g><g class="e-happy">${happy}</g><g class="e-sleep">${sleep}</g>`;
+    // 嘴：微笑、圆嘴、大笑、抿着、说话
+    o += `<path class="m-smile" d="M110,${my} Q120,${my + 9} 130,${my}" fill="none" ${S} stroke-width="4"/>`;
+    o += `<ellipse class="m-o" cx="120" cy="${my + 2}" rx="5" ry="6" fill="${INK}"/>`;
+    o += `<path class="m-happy" d="M107,${my - 2} Q120,${my + 16} 133,${my - 2}Z" fill="#FF5A7A" ${S} stroke-width="4"/>`;
+    o += `<path class="m-flat" d="M114,${my + 2} L126,${my + 2}" ${S} stroke-width="4"/>`;
+    o += `<ellipse class="m-talk" cx="120" cy="${my + 2}" rx="7" ry="6" fill="#FF5A7A" ${S} stroke-width="4"/>`;
+    if (has('horns')) { const h = `<g class="${np('horns').trim()}"><path d="M90,${sh.top + 16} Q74,${sh.top - 16} 94,${sh.top - 26} Q98,${sh.top - 4} 108,${sh.top + 6}Z" fill="#FFF4D2" ${S} stroke-width="5"/></g>`; o += h + flip(h); }
+    if (has('antenna')) { const ax = has('horns') ? 104 : 84, bx = has('horns') ? 112 : 106, cx = has('horns') ? 110 : 98; const a = `<g class="p-ant${np('antenna')}"><path d="M${bx},${sh.top + 4} Q${cx},${sh.top - 30} ${ax},${sh.top - 38}" fill="none" ${S} stroke-width="5"/><circle cx="${ax}" cy="${sh.top - 38}" r="7" fill="${light}" ${S} stroke-width="4"/></g>`; o += a + flip(a); }
+    const z = `<g class="zzz" fill="#fff" stroke="${INK}" stroke-width="5" paint-order="stroke" stroke-linejoin="round" font-family="inherit" font-weight="700"><text x="176" y="${sh.top + 4}" font-size="22">z</text><text x="194" y="${sh.top - 16}" font-size="16">z</text></g>`;
+    // 画布按它的个头裁：小的时候不留一大片空白
+    const reach = sh.top - (has('antenna') ? 50 : has('horns') ? 30 : 8) - 26;
+    const y0 = Math.max(0, Math.min(110, Math.floor(218 - (218 - reach) * sc - 14)));
+    const filter = opt.plain ? '' : `<defs><filter id="${id}" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB"><feMorphology in="SourceAlpha" operator="dilate" radius="4.5" result="d"/><feFlood flood-color="#fff"/><feComposite in2="d" operator="in" result="o"/><feMerge><feMergeNode in="o"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`;
+    return `<svg class="critter" data-mood="${mood || 'awake'}" viewBox="0 ${y0} 240 ${236 - y0}" role="img" aria-label="${look.name || ''}">${filter}<ellipse class="shadow" cx="120" cy="220" rx="${60 * sc}" ry="7" fill="${INK}" opacity=".18"/><g transform="translate(120 218) scale(${sc}) translate(-120 -218)"><g class="act"><g class="idle"><g${opt.plain ? '' : ` filter="url(#${id})"`}>${o}</g></g>${z}</g></g></svg>`;
+  }
+
+  /* 蛋：花纹由目标的类别决定；cracks 是敲出来的裂缝数（0–3） */
+  function egg(hue, kind, cracks) {
+    const [body, light, dark] = HUES[hue % HUES.length], d = 'M120,40 C164,40 190,110 190,152 C190,194 160,216 120,216 C80,216 50,194 50,152 C50,110 76,40 120,40Z', id = 'eg' + (++uid);
+    let pat = '';
+    if (kind === 'read') pat = [92, 128, 164].map(y => `<rect x="40" y="${y}" width="160" height="16" fill="${body}"/>`).join('');
+    else if (kind === 'learn') pat = [[90, 100], [150, 96], [120, 130], [78, 158], [162, 156], [108, 186], [142, 190], [120, 74]].map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="10" fill="${body}"/>`).join('');
+    else if (kind === 'body') pat = [-40, 0, 40, 80, 120].map(x => `<path d="M${x},230 L${x + 110},30 L${x + 132},30 L${x + 22},230Z" fill="${body}"/>`).join('');
+    else pat = `<path d="M40,120 L66,96 L93,120 L120,96 L147,120 L174,96 L200,120 L200,150 L174,126 L147,150 L120,126 L93,150 L66,126 L40,150Z" fill="${body}"/><path d="M40,176 L66,160 L93,176 L120,160 L147,176 L174,160 L200,176 L200,192 L174,176 L147,192 L120,176 L93,192 L66,176 L40,192Z" fill="${dark}"/>`;
+    const cr = ['M120,44 L112,66 L126,80 L116,98', 'M168,100 L150,112 L158,130 L140,140 L146,158', 'M66,128 L84,138 L76,156 L96,164 L90,184 L108,190'];
+    let ck = ''; for (let i = 0; i < Math.min(3, cracks | 0); i++) ck += `<path d="${cr[i]}" fill="none" ${S} stroke-width="4.5"/>`;
+    return `<svg class="eggsvg" viewBox="0 20 240 216" role="img" aria-label="蛋"><defs><clipPath id="${id}"><path d="${d}"/></clipPath><filter id="${id}f" x="-20%" y="-20%" width="140%" height="140%"><feMorphology in="SourceAlpha" operator="dilate" radius="4.5" result="d"/><feFlood flood-color="#fff"/><feComposite in2="d" operator="in" result="o"/><feMerge><feMergeNode in="o"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><ellipse cx="120" cy="220" rx="56" ry="7" fill="${INK}" opacity=".18"/><g class="eggbody"><g filter="url(#${id}f)"><path d="${d}" fill="${light}"/><g clip-path="url(#${id})">${pat}</g><path d="${d}" fill="none" ${S} stroke-width="6"/><path d="M92,74 Q100,62 112,58" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" opacity=".8"/>${ck}</g></g></svg>`;
+  }
+
+  /* 它捡的宝贝：24 种，每种一个小图标（24×24，圆心在原点） */
+  const G = 'stroke="' + INK + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"';
+  const GLYPH = {
+    stone: `<ellipse rx="9" ry="6.5" fill="#C9CDD8" ${G}/><path d="M-5,-2 Q-2,-4 2,-3.5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>`,
+    pencil: `<g transform="rotate(-35)"><rect x="-10" y="-3.2" width="15" height="6.4" fill="#FFCF3A" ${G}/><path d="M5,-3.2 L11,0 L5,3.2Z" fill="#FFE9C9" ${G}/><rect x="-10" y="-3.2" width="3.5" height="6.4" fill="#FF8FA8" ${G}/></g>`,
+    ginkgo: `<path d="M0,10 L0,2 C-13,3 -12,-10 0,-9 C12,-10 13,3 0,2" fill="#FFD23F" ${G}/><path d="M0,2 L0,-5" fill="none" ${G}/>`,
+    key: `<circle cx="-5" cy="0" r="5" fill="#E8B766" ${G}/><circle cx="-5" cy="0" r="1.6" fill="${INK}"/><path d="M0,0 H10 M6,0 V4 M9.5,0 V3" fill="none" ${G}/>`,
+    marble: `<circle r="8.5" fill="#7FD3FF" ${G}/><path d="M-4,3 C-2,-5 4,-5 3,2" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>`,
+    ticket: `<path d="M-10,-6 H10 V-2 a2,2 0 0 0 0,4 V6 H-10 V2 a2,2 0 0 0 0,-4Z" fill="#FF9CB8" ${G}/><path d="M3,-5 V5" fill="none" stroke="${INK}" stroke-width="1.6" stroke-dasharray="2 2.4"/>`,
+    feather: `<path d="M-8,9 C-11,-4 2,-12 9,-9 C10,-1 2,8 -8,9Z" fill="#6BB8FF" ${G}/><path d="M-8,9 L5,-5" fill="none" ${G}/>`,
+    cap: `<circle r="8.5" fill="#FF7B5A" ${G} stroke-dasharray="3.2 2.2"/><circle r="4.5" fill="#FFD8CA" ${G}/>`,
+    yarn: `<circle r="8.5" fill="#FF85B8" ${G}/><path d="M-7,-3 Q0,2 7,-3 M-8,2 Q0,7 8,2 M-3,-8 Q-6,0 -2,8" fill="none" stroke="${INK}" stroke-width="1.5" stroke-linecap="round"/>`,
+    coin: `<circle r="8.5" fill="#FFCF3A" ${G}/><circle r="5" fill="none" stroke="#D99E00" stroke-width="2"/>`,
+    clover: `<path d="M0,2 L3,11" fill="none" ${G}/><circle cx="-4.2" cy="-4.2" r="4.4" fill="#4FD1A1" ${G}/><circle cx="4.2" cy="-4.2" r="4.4" fill="#4FD1A1" ${G}/><circle cx="-4.2" cy="4.2" r="4.4" fill="#4FD1A1" ${G}/><circle cx="4.2" cy="4.2" r="4.4" fill="#4FD1A1" ${G}/>`,
+    crane: `<path d="M-11,3 L-1,-2 L10,-9 L4,2 L9,8 L0,3 L-5,9Z" fill="#fff" ${G}/><path d="M-1,-2 L0,3 L4,2" fill="none" ${G}/>`,
+    puzzle: `<path d="M-8,-7 H-3 a3.2,3.2 0 1 1 6,0 H8 V8 H-8Z" fill="#A98BFF" ${G}/>`,
+    pinecone: `<ellipse rx="6.8" ry="9.5" fill="#B9834F" ${G}/><path d="M-6,-3 Q0,1 6,-3 M-6.5,2 Q0,6 6.5,2" fill="none" stroke="${INK}" stroke-width="1.6" stroke-linecap="round"/>`,
+    string: `<path d="M-8,7 C-11,-8 8,-11 7,1 C6,8 -3,7 -2,0" fill="none" stroke="${INK}" stroke-width="5.5" stroke-linecap="round"/><path d="M-8,7 C-11,-8 8,-11 7,1 C6,8 -3,7 -2,0" fill="none" stroke="#FF5A7A" stroke-width="2.6" stroke-linecap="round"/>`,
+    candy: `<path d="M-4,0 L-11,-5 V5Z M4,0 L11,-5 V5Z" fill="#FFD9E9" ${G}/><rect x="-5" y="-5" width="10" height="10" rx="3" fill="#FF85B8" ${G}/>`,
+    shell: `<path d="M0,8 C-13,6 -12,-8 0,-8 C12,-8 13,6 0,8Z" fill="#FFE1C4" ${G}/><path d="M0,8 V-7 M0,8 L-6,-5 M0,8 L6,-5" fill="none" stroke="${INK}" stroke-width="1.6" stroke-linecap="round"/>`,
+    clip: `<path d="M-5,-4 V5 a4,4 0 0 0 8,0 V-6 a2.6,2.6 0 0 0 -5.2,0 V4" fill="none" stroke="${INK}" stroke-width="5.2" stroke-linecap="round"/><path d="M-5,-4 V5 a4,4 0 0 0 8,0 V-6 a2.6,2.6 0 0 0 -5.2,0 V4" fill="none" stroke="#C9CDD8" stroke-width="2" stroke-linecap="round"/>`,
+    flower: [0, 72, 144, 216, 288].map(a => `<circle cx="${(Math.sin(a * Math.PI / 180) * 5.6).toFixed(1)}" cy="${(-Math.cos(a * Math.PI / 180) * 5.6).toFixed(1)}" r="4" fill="#FFB8D4" ${G}/>`).join('') + `<circle r="3" fill="#FFCF3A" ${G}/>`,
+    button: `<circle r="8.5" fill="#5AB0FF" ${G}/><circle cx="-2.6" cy="-2.6" r="1.3" fill="${INK}"/><circle cx="2.6" cy="-2.6" r="1.3" fill="${INK}"/><circle cx="-2.6" cy="2.6" r="1.3" fill="${INK}"/><circle cx="2.6" cy="2.6" r="1.3" fill="${INK}"/>`,
+    candle: `<rect x="-4" y="-3" width="8" height="12" rx="1.5" fill="#FFF2C2" ${G}/><path d="M0,-3 V-5" fill="none" ${G}/><path d="M0,-11 C3,-8 2.5,-5 0,-5 C-2.5,-5 -3,-8 0,-11Z" fill="#FF9E3A" ${G}/>`,
+    eraser: `<g transform="rotate(-20)"><rect x="-9" y="-5" width="18" height="10" rx="2.5" fill="#fff" ${G}/><rect x="-9" y="-5" width="8" height="10" rx="2.5" fill="#6BB8FF" ${G}/></g>`,
+    stamp: `<rect x="-8" y="-9" width="16" height="18" fill="#D2F6E7" ${G} stroke-dasharray="2.6 2"/><circle cy="-1" r="3.6" fill="#4FD1A1" ${G}/><path d="M-4,5 H4" fill="none" ${G}/>`,
+    bell: `<path d="M-8,5 C-7,-2 -6,-8 0,-8 C6,-8 7,-2 8,5Z" fill="#FFCF3A" ${G}/><circle cy="7.5" r="2.4" fill="#D99E00" ${G}/><path d="M0,-8 V-10.5" fill="none" ${G}/>`,
+  };
+  const ITEMS = Object.keys(GLYPH);
+  const glyph = (id, size) => `<svg class="glyph" viewBox="-13 -13 26 26" width="${size || 28}" height="${size || 28}" aria-hidden="true">${GLYPH[id] || GLYPH.stone}</svg>`;
+
+  /* 场景：跟着真实时间走。白天的天色是这只伙伴自己的颜色，夜里有月亮和星星。窝里摆着它捡的宝贝。 */
+  function phaseOf(hour) { return hour < 5 ? 'night' : hour < 8 ? 'dawn' : hour < 17 ? 'day' : hour < 20 ? 'dusk' : 'night'; }
+  function scene(phase, hue, items, opt) {
+    opt = opt || {}; const id = 'sc' + (++uid), day = HUES[hue % HUES.length][3];
+    const sky = { day: [day, day], dawn: ['#FFD9C2', '#FFF0C9'], dusk: ['#B9A4F2', '#FFC4A6'], night: ['#1A1846', '#38357E'] }[phase];
+    const ground = { day: '#BDE9AE', dawn: '#BCE6B9', dusk: '#9FD6A8', night: '#3D7668' }[phase], gshade = { day: '#8FD08A', dawn: '#93D09D', dusk: '#78BD8C', night: '#2C5B52' }[phase];
+    let sk = '';
+    if (phase === 'night') {
+      sk += `<circle cx="322" cy="118" r="20" fill="#FFF3C4" ${S} stroke-width="3"/><circle cx="315" cy="112" r="4" fill="#F2DFA0"/><circle cx="328" cy="124" r="2.6" fill="#F2DFA0"/>`;
+      const st = [[40, 100], [84, 140], [120, 96], [168, 128], [214, 104], [258, 150], [286, 92], [364, 160], [58, 176], [236, 176], [150, 170], [376, 108]];
+      sk += st.map((p, i) => `<circle class="star" style="animation-delay:${(i * 0.37).toFixed(2)}s" cx="${p[0]}" cy="${p[1]}" r="${i % 3 ? 1.6 : 2.4}" fill="#FFF7D6"/>`).join('');
+    } else {
+      const sun = { day: [326, 116, '#FFE27A'], dawn: [70, 196, '#FFB08A'], dusk: [330, 200, '#FF8E7A'] }[phase];
+      sk += `<circle cx="${sun[0]}" cy="${sun[1]}" r="21" fill="${sun[2]}" ${S} stroke-width="3"/>`;
+      const cloud = (x, y, s) => `<g class="cloud" transform="translate(${x} ${y}) scale(${s})"><path d="M-30,8 a12,12 0 0 1 4,-23 a17,17 0 0 1 32,-3 a13,13 0 0 1 18,26Z" fill="#fff" ${S} stroke-width="${3 / s}" opacity=".95"/></g>`;
+      sk += cloud(168, 112, 0.9) + cloud(262, 152, 0.66);
+    }
+    let nest = '';
+    if (items && items.length) {
+      const pos = [[300, 252, -8], [326, 247, 10], [352, 252, 6], [376, 247, -14], [288, 264, 12], [314, 262, 16], [340, 264, -6]];
+      nest += `<ellipse cx="332" cy="262" rx="62" ry="9" fill="${INK}" opacity=".12"/>`;
+      items.slice(-7).forEach((it, i) => { const p = pos[i]; nest += `<g transform="translate(${p[0]} ${p[1]}) rotate(${p[2]}) scale(1.05)"${it.fresh ? ' class="dropin"' : ''}>${GLYPH[it.id] || GLYPH.stone}</g>`; });
+    }
+    const tuft = (x, y) => `<path d="M${x},${y} l-4,-9 M${x},${y} l0,-11 M${x},${y} l4,-9" fill="none" stroke="${gshade}" stroke-width="2.6" stroke-linecap="round"/>`;
+    return `<svg class="scene ${phase}" viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset=".25" stop-color="${sky[0]}"/><stop offset=".85" stop-color="${sky[1]}"/></linearGradient></defs>` +
+      `<rect width="400" height="300" fill="url(#${id})"/>${sk}<path d="M0,238 Q90,186 190,226 T400,204 L400,300 L0,300Z" fill="${INK}" opacity="${phase === 'night' ? 0.28 : 0.09}"/>` +
+      `<path d="M-4,250 Q200,226 404,250 L404,304 L-4,304Z" fill="${ground}" ${S} stroke-width="3"/>${tuft(36, 268)}${tuft(92, 286)}${tuft(232, 290)}${opt.noNest ? '' : nest}</svg>`;
+  }
+
+  root.Critter = { critter, egg, scene, phaseOf, glyph, ITEMS, HUES, SHAPES: SHAPES.length, INK };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* 养一只 · 声音
+ * 全部用 WebAudio 现场合成，没有任何音频文件。第一次点屏幕时才启动，随时可以在设置里关掉。
+ * 它说话的「嘟嘟声」音高由这只伙伴的体型和颜色决定，所以每只听起来都不一样。
+ */
+(function (root) {
+  'use strict';
+  let ctx = null, master = null, on = true;
+  function unlock() {
+    if (!on) return;
+    try {
+      if (!ctx) { const AC = root.AudioContext || root.webkitAudioContext; if (!AC) return; ctx = new AC(); master = ctx.createGain(); master.gain.value = 0.5; master.connect(ctx.destination); }
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    } catch (e) { ctx = null; }
+  }
+  const ready = () => on && ctx && ctx.state === 'running';
+  /* 一个音：频率、时长、波形、音量、延迟、滑到的频率 */
+  function tone(f, dur, type, vol, delay, slide) {
+    if (!ready()) return;
+    try {
+      const t = ctx.currentTime + (delay || 0), o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type || 'sine'; o.frequency.setValueAtTime(f, t); if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, slide), t + dur);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol || 0.2, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.03);
+    } catch (e) { /* 没声音不影响任何功能 */ }
+  }
+  function noise(dur, vol, delay, hp) {
+    if (!ready()) return;
+    try {
+      const t = ctx.currentTime + (delay || 0), n = Math.floor(ctx.sampleRate * dur), buf = ctx.createBuffer(1, n, ctx.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+      const s = ctx.createBufferSource(), g = ctx.createGain(), f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = hp || 1200;
+      s.buffer = buf; g.gain.value = vol || 0.15; s.connect(f); f.connect(g); g.connect(master); s.start(t);
+    } catch (e) { /* 同上 */ }
+  }
+  const N = { C5: 523, D5: 587, E5: 659, G5: 784, A5: 880, C6: 1047, E6: 1319, G6: 1568 };
+  const Sfx = {
+    unlock, get on() { return on; }, set on(v) { on = !!v; if (on) unlock(); },
+    tap() { tone(520, 0.05, 'sine', 0.08, 0, 760); },
+    send() { tone(420, 0.12, 'sine', 0.14, 0, 980); },
+    gulp() { tone(340, 0.1, 'sine', 0.22, 0, 150); tone(180, 0.12, 'sine', 0.2, 0.09, 420); },
+    grow() { tone(N.E5, 0.09, 'triangle', 0.14); tone(N.A5, 0.14, 'triangle', 0.14, 0.07); },
+    levelUp() { [N.C5, N.E5, N.G5, N.C6].forEach((f, i) => tone(f, 0.16, 'triangle', 0.16, i * 0.08)); tone(N.E6, 0.4, 'sine', 0.1, 0.34); },
+    sparkle() { tone(N.C6, 0.08, 'sine', 0.08); tone(N.G6, 0.14, 'sine', 0.07, 0.06); },
+    found() { tone(N.G5, 0.08, 'triangle', 0.12); tone(N.C6, 0.08, 'triangle', 0.12, 0.08); tone(N.E6, 0.18, 'triangle', 0.1, 0.16); },
+    crack(i) { noise(0.07, 0.22, 0, 1800); tone(220 + i * 70, 0.07, 'square', 0.07, 0, 110); },
+    hatch() { noise(0.16, 0.26, 0, 900); [N.C5, N.G5, N.C6, N.E6, N.G6].forEach((f, i) => tone(f, 0.2, 'triangle', 0.15, 0.08 + i * 0.07)); },
+    rumble() { for (let i = 0; i < 6; i++) { tone(90 + i * 14, 0.11, 'sawtooth', 0.07, i * 0.13); noise(0.05, 0.08, i * 0.13 + 0.03, 2400); } },
+    molt() { noise(0.22, 0.28, 0, 700); [N.G5, N.C6, N.E6, N.G6].forEach((f, i) => tone(f, 0.24, 'triangle', 0.15, 0.1 + i * 0.09)); tone(N.C6 * 2, 0.5, 'sine', 0.08, 0.5); },
+    grown() { [N.C5, N.E5, N.G5, N.C6, N.G5, N.C6, N.E6].forEach((f, i) => tone(f, 0.22, 'triangle', 0.16, i * 0.11)); tone(N.G6, 0.7, 'sine', 0.1, 0.8); },
+    wake() { tone(300, 0.14, 'sine', 0.14, 0, 620); tone(660, 0.12, 'sine', 0.1, 0.13, 780); },
+    sleep() { tone(520, 0.3, 'sine', 0.1, 0, 260); },
+    poke(pitch) { tone((pitch || 600) * 1.25, 0.07, 'triangle', 0.13, 0, (pitch || 600) * 1.7); },
+    /* 它说话：每两个字嘟一声 */
+    blip(pitch, style) { const p = (pitch || 600) * (0.9 + Math.random() * 0.3); tone(p, style === 'quiet' ? 0.07 : 0.045, style === 'sharp' ? 'square' : 'triangle', style === 'sharp' ? 0.045 : 0.085); },
+    buzz(ms) { try { if (on && navigator.vibrate) navigator.vibrate(ms || 10); } catch (e) { /* 不支持就算了 */ } },
+  };
+  root.Sfx = Sfx;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* 养一只 · 粒子
+ * 一层盖住全屏、不挡点击的画布。只在有东西要画的时候才跑动画帧。
+ * 用到的地方：敲蛋的碎壳、讲的话飞进它嘴里的光点、长大时的星星、蜕壳的碎片、长成时的彩屑。
+ */
+(function (root) {
+  'use strict';
+  let cv = null, c = null, parts = [], raf = 0, last = 0, W = 0, H = 0;
+  const reduce = () => root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function setup() {
+    if (cv) return true; cv = document.getElementById('fx'); if (!cv) return false; c = cv.getContext('2d'); resize(); root.addEventListener('resize', resize); return true;
+  }
+  function resize() { const d = Math.min(2, root.devicePixelRatio || 1); W = root.innerWidth; H = root.innerHeight; cv.width = W * d; cv.height = H * d; c.setTransform(d, 0, 0, d, 0, 0); }
+  function loop(ts) {
+    const dt = Math.min(0.05, (ts - last) / 1000 || 0.016); last = ts; c.clearRect(0, 0, W, H);
+    parts = parts.filter(p => (p.t += dt) < p.life);
+    for (const p of parts) {
+      const k = p.t / p.life;
+      if (p.kind === 'orb') {
+        const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2, x = p.x0 + (p.x1 - p.x0) * e, y = p.y0 + (p.y1 - p.y0) * e - Math.sin(k * Math.PI) * p.arc;
+        c.globalAlpha = 1; c.fillStyle = p.color; c.strokeStyle = '#1E1A3C'; c.lineWidth = 2.5; c.beginPath(); c.arc(x, y, 9 * (1 - k * 0.45), 0, 7); c.fill(); c.stroke();
+        c.fillStyle = '#fff'; c.beginPath(); c.arc(x - 3, y - 3, 2.6, 0, 7); c.fill();
+        if (Math.random() < 0.6) parts.push({ kind: 'dot', x, y, vx: (Math.random() - 0.5) * 30, vy: (Math.random() - 0.5) * 30, g: 0, t: 0, life: 0.35, size: 3, color: p.color, rot: 0, vr: 0 });
+        if (k > 0.88 && p.cb) p.cb();
+        continue;
+      }
+      p.vy += p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt; p.vx *= 1 - 1.2 * dt;
+      c.globalAlpha = k > 0.7 ? (1 - k) / 0.3 : 1; c.save(); c.translate(p.x, p.y); c.rotate(p.rot); c.fillStyle = p.color;
+      if (p.kind === 'star') { star(p.size * (1 - k * 0.3)); c.fill(); c.strokeStyle = '#1E1A3C'; c.lineWidth = 1.6; c.stroke(); }
+      else if (p.kind === 'shard') { c.beginPath(); c.moveTo(-p.size, p.size * 0.6); c.lineTo(0, -p.size); c.lineTo(p.size, p.size * 0.5); c.closePath(); c.fill(); c.strokeStyle = '#1E1A3C'; c.lineWidth = 2; c.stroke(); }
+      else if (p.kind === 'dot') { c.beginPath(); c.arc(0, 0, p.size * (1 - k), 0, 7); c.fill(); }
+      else if (p.kind === 'ring') { c.globalAlpha = 1 - k; c.strokeStyle = p.color; c.lineWidth = 5 * (1 - k) + 1; c.beginPath(); c.arc(0, 0, p.size + k * p.grow, 0, 7); c.stroke(); }
+      else if (p.kind === 'text') { c.font = '400 ' + p.size + 'px "ZCOOL KuaiLe", "PingFang SC", sans-serif'; c.textAlign = 'center'; c.lineJoin = 'round'; c.lineWidth = 6; c.strokeStyle = '#1E1A3C'; c.strokeText(p.text, 0, 0); c.fillText(p.text, 0, 0); }
+      else { c.fillRect(-p.size / 2, -p.size / 3, p.size, p.size * 0.66); }
+      c.restore();
+    }
+    c.globalAlpha = 1;
+    if (parts.length) raf = requestAnimationFrame(loop); else { raf = 0; c.clearRect(0, 0, W, H); }
+  }
+  function star(r) { c.beginPath(); for (let i = 0; i < 10; i++) { const a = i * Math.PI / 5 - Math.PI / 2, q = i % 2 ? r * 0.45 : r; c.lineTo(Math.cos(a) * q, Math.sin(a) * q); } c.closePath(); }
+  function kick() { if (!raf) { last = performance.now(); raf = requestAnimationFrame(loop); } }
+  const center = el => { const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
+  const POP = ['#FFD23F', '#FF85B8', '#5AB0FF', '#4FD1A1', '#A98BFF', '#FF7B5A'];
+  const Fx = {
+    center,
+    burst(x, y, o) {
+      if (reduce() || !setup()) return; o = o || {}; const n = o.count || 16, colors = o.colors || POP, sp = o.speed || 260;
+      for (let i = 0; i < n; i++) { const a = (o.up ? -Math.PI / 2 + (Math.random() - 0.5) * (o.spread || 2.4) : Math.random() * Math.PI * 2), v = sp * (0.4 + Math.random() * 0.8);
+        parts.push({ kind: o.kind || 'star', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: o.gravity == null ? 520 : o.gravity, t: 0, life: (o.life || 0.9) * (0.7 + Math.random() * 0.6), size: (o.size || 8) * (0.7 + Math.random() * 0.6), color: colors[i % colors.length], rot: Math.random() * 6, vr: (Math.random() - 0.5) * 10 }); }
+      kick();
+    },
+    ring(x, y, color) { if (reduce() || !setup()) return; parts.push({ kind: 'ring', x, y, vx: 0, vy: 0, g: 0, t: 0, life: 0.6, size: 20, grow: 90, color: color || '#FFD23F', rot: 0, vr: 0 }); kick(); },
+    confetti() {
+      if (reduce() || !setup()) return;
+      for (let i = 0; i < 90; i++) parts.push({ kind: i % 4 ? 'rect' : 'star', x: Math.random() * W, y: -20 - Math.random() * 120, vx: (Math.random() - 0.5) * 120, vy: 120 + Math.random() * 220, g: 160, t: 0, life: 2.4 + Math.random() * 1.4, size: 7 + Math.random() * 7, color: POP[i % POP.length], rot: Math.random() * 6, vr: (Math.random() - 0.5) * 12 });
+      kick();
+    },
+    text(x, y, text, color) { if (reduce() || !setup()) return; parts.push({ kind: 'text', x, y, vx: 0, vy: -46, g: 0, t: 0, life: 1.1, size: 26, color: color || '#FFD23F', rot: 0, vr: 0, text }); kick(); },
+    /* 一颗光点从 a 飞到 b，到了以后回调。不能动画时直接回调 */
+    orb(a, b, color, cb) {
+      let fired = false; const once = () => { if (!fired) { fired = true; if (cb) cb(); } };
+      if (reduce() || !setup()) { once(); return; }
+      parts.push({ kind: 'orb', x0: a[0], y0: a[1], x1: b[0], y1: b[1], arc: 60, t: 0, life: 0.55, color: color || '#FFD23F', cb: once }); kick();
+      setTimeout(once, 800);   // 标签页在后台时动画帧不跑，回调不能丢
+    },
+  };
+  root.Fx = Fx;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* 文案、它的台词、模型提示词，都按语言收在这里。加一种语言 = 加一张表。
+ * 界面用词的原则：只用小白一眼能懂的词。成长、关、下一小步、宝贝。
+ * 引擎里的见闻、好奇心、羁绊等概念不出现在界面上。
+ */
+(function (root) {
+  'use strict';
+  const zh = {
+    brand: '养一只', navDiary: '日记', navHome: '栖地', navSet: '设置', back: '‹ 返回',
+    days(d) { return d < 1 ? Math.max(1, Math.round(d * 24)) + ' 小时' : Math.round(d) + ' 天'; },
+    date(ms) { const x = new Date(ms); return (x.getMonth() + 1) + ' 月 ' + x.getDate() + ' 日'; },
+
+    names: ['团子', '啾啾', '阿福', '豆包', '毛球', '糯米', '咕噜', '小满', '芝麻', '皮皮', '墩墩', '泡芙', '栗子', '阿呆'],
+    trinkets: { stone: '光滑的石子', pencil: '半截铅笔', ginkgo: '银杏叶', key: '生锈的钥匙', marble: '玻璃珠', ticket: '车票根', feather: '蓝色羽毛', cap: '瓶盖', yarn: '一小团毛线', coin: '旧硬币', clover: '四叶草', crane: '纸鹤',
+      puzzle: '一块拼图', pinecone: '松果', string: '红绳', candy: '糖纸', shell: '贝壳', clip: '回形针', flower: '干花', button: '纽扣', candle: '半截蜡烛', eraser: '橡皮', stamp: '邮票', bell: '小铃铛' },
+    kinds: { read: 1, make: 1, learn: 1, body: 1 },
+    kindWords: { read: /读|书|看完|阅/, learn: /学|考|背|课|语|证/, body: /跑|练|健身|减|瘦|游泳|瑜伽|马拉松/, make: /做|写|画|开发|游戏|搭|建|剪|录/ },
+    styles: { curious: '爱问', quiet: '话少', sharp: '毒舌' },
+    parts: {
+      eyes: ['大眼睛', '这一关它问的话你大多答了，它的眼睛越睁越大。'],
+      horns: ['角', '这一关你每次都讲得很细，它长出了角。'],
+      wings: ['小翅膀', '这一关你来得勤，一点一点地做，它长出了翅膀。'],
+      antenna: ['触须', '这一关你做得不紧不慢，它长出了触须。'],
+      tail: ['尾巴', '这一关过了，它多了一条尾巴。'],
+      plates: ['肚甲', '这一关过了，它的肚皮长出了甲。'],
+    },
+
+    // 引导：一屏只问一件事
+    ob1Title: '你捡到一颗蛋', ob1Lead: '它会为你想做成的一件事孵出来，陪你把这件事做完。',
+    ob1Again: '又捡到一颗蛋', ob1AgainLead: '之前的伙伴在栖地里。这颗蛋为下一件事而来。',
+    ob1Q: '你想做成什么事？', ob1Ph: '比如：读完《人类简史》', ob1Ex: ['读完一本书', '做出一个小游戏', '学会一首曲子', '跑下 10 公里'],
+    ob1Next: '下一步', ob1Busy: '蛋在听……', ob1Need: '先写下想做成的那件事。',
+    ob2Title: '分成 {n} 关，一关一关来', ob2Lead: '每过一关，它蜕一次壳，长出一样新东西。',
+    ob2Edit: '我想改改', ob2EditDone: '改好了', ob2Add: '加一关', ob2Del: '删', ob2MileName: '这一关叫什么', ob2MileWhen: '怎样算过关（可不填）',
+    ob2First: '今天先做哪一小步？', ob2FirstPh: '20 分钟内能做完的一件小事', ob2FirstHint: '越小越好。做完回来告诉它。',
+    ob2Go: '孵蛋', ob2Back: '‹ 上一步', ob2NeedFirst: '写一个今天能做的小步，蛋才孵得出来。', ob2NeedMiles: '至少要有两关，每关起个名字。',
+    ob3Tap: '敲敲它', ob3TapLead: '蛋壳里有动静。', ob3TapHint: ['点它一下', '再来', '就差一下'], ob3Egg: '敲蛋', ob3Title: '它出来了', ob3Name: '叫它什么？', ob3Reroll: '换一个', ob3Voice: '它怎么说话？', ob3Go: '开始',
+    obDefault: [['开个头', '做出第一份能看的东西'], ['做出主体', '主要部分都有了，哪怕粗糙'], ['收尾', '可以拿给别人看']],
+    obLooking: '正在找你的伙伴……',
+
+    // 主界面
+    stAwake: '醒着', stAsleep: '睡着了', stGroggy: '刚醒',
+    grow: '成长', growMax: '长满了，过关就蜕变',
+    nextLabel: '下一小步', nextEmpty: '还没定', nextEdit: '改',
+    btnReport: '我做了一点', btnWake: '叫醒它', btnStuck: '不想动', btnChat: '找它聊聊',
+    thinking: '{name}在想', stageRow: '第 {i} 关 · {name}', stageCount: '{a} / {b}', treasRow: '它捡的宝贝',
+    // 对话
+    send: '发送', skip: '跳过', cancel: '取消', ok: '好', close: '关闭',
+    rpPh: '做了什么？一句话就行', anPh: '回答它，一句话就行', pmPh: '下一小步做什么？', pmKeep: '还是「{x}」', pmSkip: '先不定', pmOk: '约好了',
+    chPh: '想说什么都行', chEnd: '不聊了', chHint: '聊天不会让它长大，做了事才会。', chBusy: '{name}在想……',
+    sysGrow: '成长 +{n}', sysBonus: '好久不见奖励 ×{m}', sysUp: '{name}长大了一点', sysFound: '{name}捡回来：{list}', sysMore: '等 {n} 样',
+    sysPatch: '隔了这么久你还是回来了。{name}身上多了一块补丁，是它的奖章。',
+    sysLitter: '好久不见奖励：今天讲给它听，成长 ×{m}',
+    welcomeAI: '上次做到哪了？', welcomeAIBusy: '{name}在翻日记……', stuckBusy: '{name}在想更小的一步……',
+    stuckFallback: ['只做五分钟，到点就停', '只把东西打开，看一眼上次停在哪', '只做最前面的那一下'],
+
+    // 它用自己的话教你怎么玩（每条只说一次）
+    tips: {
+      intro1: '我是{name}，为「{title}」孵出来的。\n玩法就一条：你每做一点，回来告诉我，我就长大一点。',
+      intro3: '先去做下面这一小步。做完回来，点黄色按钮。',
+      sleep: '你不在的时候我就睡觉。不会饿，也不会难过，回来叫我就行。',
+      stage: '对了，「{mile}」整关都做完的时候，点下面那一行告诉我，我会蜕壳长出新东西。',
+      treasure: '我醒着的时候会自己出门逛逛，捡到的东西都放窝里了，点下面能看。',
+    },
+    // 它的台词（连不上模型时用；连得上时由模型按性格现写）
+    say: {
+      quiet: {
+        sample: '嗯。做完告诉我。', hello: ['嗯。', '在。'], helloAM: ['早。'], helloLate: ['还没睡。'], quip: ['嗯。', '……', '在。', '嗯？'], quipMany: '……够了。', woke: '醒了。', back: '回来了。睡了 {d}。', backLast: '上次你说：「{x}」', askReport: '做了什么？',
+        react: ['知道了。', '嗯，记下了。', '听到了。'], askPromise: '下次呢？', promised: '约好了。', noPromise: '行。那我先睡。', stuck: '那就小一点：', chatEnd: '够了。去做一点。', afterMolt: '新壳。有点软。',
+      },
+      curious: {
+        sample: '这件事我也想知道结局！做完讲给我听。', hello: ['今天有什么可以讲给我听的吗？', '我在想上次那件事，后来怎么样了？'], helloAM: ['早呀！今天打算做哪一小步？'], helloLate: ['这么晚还来看我？做了一点的话，讲完就去睡吧。'], quip: ['嘿嘿', '痒！', '什么事？', '再戳一下？', '在呢在呢'], quipMany: '别戳啦，去做一点嘛！', woke: '唔，你来啦！', back: '你回来了！我睡了 {d}，攒了好多想问的。', backLast: '上次你说：「{x}」，后来呢？', askReport: '快讲，今天做了什么？',
+        react: ['原来是这样！', '这个我之前没想到。', '听起来往前走了一步。'], askPromise: '那下一小步做什么？我们约一下。', promised: '约好了，做完讲给我听。', noPromise: '好吧。没约的话我容易犯困，先去睡一会儿。', stuck: '那换个小的，这几个里挑一个：', chatEnd: '聊得差不多了，去做一点点吧，回来讲给我听。', afterMolt: '你看你看，我长出新东西了！',
+      },
+      sharp: {
+        sample: '话先说好，我只看你做了什么，不看你打算做什么。', hello: ['来了？今天打算动一动吗。', '说吧，做了什么。'], helloAM: ['起这么早，是打算做点正事？'], helloLate: ['大半夜的。做了就说，没做就睡。'], quip: ['干嘛。', '手欠？', '戳什么戳。', '有事说事。'], quipMany: '戳我不如去做五分钟。', woke: '哟，稀客。', back: '哟，回来了。我睡了 {d}，都快睡扁了。', backLast: '上次你说：「{x}」。然后就没有然后了。', askReport: '说吧，这次真做了什么？',
+        react: ['行，算数。', '嗯，比光想强。', '可以，记你一笔。'], askPromise: '下一小步做什么？说具体点。', promised: '行，我记着了。', noPromise: '不约？那我可睡了。', stuck: '嫌大是吧。那挑个小的：', chatEnd: '嘴上功夫够了。去做五分钟。', afterMolt: '新壳。别摸，还没硬。',
+      },
+    },
+    askFallback: ['这次最卡的地方是什么？', '有什么是做之前没想到的？', '只留一句话给下次的自己，会是什么？', '比起上次，哪里更清楚了？'],
+
+    // 路线、蜕变
+    rtTitle: '路线', rtNow: '现在这一关', rtBtn: '这一关过了，看它蜕变', rtNeed: '先做一点，再来过关。', rtDone: '{date} 过关 · 长出{part}', rtRelease: '不想做这件事了',
+    mlGot: '{name}长出了{part}', mlPassed: '第 {i} 关过了',
+    grownTitle: '{name}长成了', grownBody: '它搬去栖地住了，随时可以去看它。', grownGo: '去栖地看它', grownNew: '再捡一颗蛋',
+    certDone: '做成了', certLeft: '放下了', certDays: '{d}', certAdv: '讲了 {n} 次', certItems: '{n} 样宝贝', certParts: '长出了{list}', certShells: '它蜕下的壳', rtCur: '在这儿',
+    trTitle: '它捡的宝贝', trLead: '它醒着的时候会自己出门捡东西。和它约好下一小步，它就醒着。', trCount: '{a} / {b}',
+    rlTitle: '放归{name}', rlLead: '有些事就是该放下。它不会难过：它会带着捡来的宝贝去野外，以后在栖地里还能看到它。', rlReason: '为什么放下（可不填）', rlGo: '放归', rlKeep: '再想想', rlToast: '{name}去野外了。',
+
+    // 日记、栖地
+    dyTitle: '日记', dyEmpty: '还没有日记。做一点事，回来讲给它听。', dyStage: '第 {i} 关 · {name}', dyShell: '{date} 过关', dyNext: '约好：',
+    hmTitle: '栖地', hmBond: '默契 {n}', hmLead: '每陪过一只，默契就多一些。默契越高，新伙伴捡宝贝越快。',
+    hmGrown: '长成', hmReleased: '放归', hmLine: '{from} 到 {to} · 讲了 {adv} 次', hmNow: '正在陪你',
+    // 设置
+    setTitle: '设置', setVoice: '它怎么说话', setSound: '声音', setOn: '开', setOff: '关',
+    setTime: '试玩工具', setTimeHint: '把时间往后拨，体验「离开几天再回来」。拨了回不去。', setTimeBtn: '过 {d} 天',
+    setAbout: '关于', setSaveCloud: '进度已存到你的 Claude 账号。', setSaveLocal: '进度只存在这台设备上。', setSaveNone: '这里存不了进度，关掉页面就没了。',
+    setAIOn: '它说的话由 Claude 根据你的日记现写。', setAIOff: '这里连不上 Claude，它会用预先写好的台词。',
+    setExport: '复制存档', setCopied: '已复制', setReset: '清空重来', setResetLead: '会删掉全部伙伴和日记。', setResetGo: '确定清空',
+    err: { rate_limited: 'Claude 现在用得太勤，过一会儿再试。', refused: '这段内容 Claude 处理不了，换个说法试试。', session_expired: '登录过期了，重新登录后再试。',
+      invalid_json: 'Claude 这次没按格式回，再试一次。', off: '这里连不上 Claude，先用预先写好的台词。', other: '没连上 Claude。可以再试一次。' },
+  };
+
+  /* 提示词：模型每次调用都没有记忆，所以人设、数据、格式都写在这一段里。 */
+  const clip = (s, n) => (s || '').replace(/\s+/g, ' ').trim().slice(0, n);
+  const STYLE = { quiet: '话很少，每次最多两句，平实，不用感叹号', curious: '好奇心重，喜欢追问具体细节，语气轻快', sharp: '嘴上不饶人，爱吐槽，但吐槽的是事不是人，立场永远站在主人这边' };
+  const who = g => `你扮演「${clip(g.name, 12)}」，一只为了陪主人做成「${clip(g.title, 80)}」这件事而孵出来的小生物。你是主人做这件事的搭档，只关心这件事。
+说话方式：${STYLE[g.style] || STYLE.curious}。
+必须遵守：
+- 说中文口语，短。
+- 只根据下面给你的记录说话，记录里没有的事不要编。
+- 说实话：主人做得少就照实说少，不吹捧，也不责备、不让主人内疚。
+- 你不会饿、不会难过、不会孤单。不说想念主人、离不开主人，不扮演恋人或唯一的朋友。主人去陪别人或休息，你觉得挺好。
+- 主人认真问你是不是 AI 时，照实说你是由 AI 驱动的小伙伴。`;
+  const logLines = logs => logs.map(l => `- ${l.date}：${clip(l.text, 200)}${l.a ? `（你问：${clip(l.q, 60)} 主人答：${clip(l.a, 200)}）` : ''}${l.next ? ` 约好：${clip(l.next, 80)}` : ''}`).join('\n') || '（还没有记录）';
+  const P = {
+    plan: ({ title }) => `你在帮一个人把大目标拆小。这个人容易中途放弃，所以每一步都要具体、可判断。
+
+目标：「${clip(title, 80)}」
+
+1. kind：这个目标属于哪一类，只能是 read（读）、make（做、写、创作）、learn（学习、备考）、body（运动、身体）之一。
+2. milestones：按先后顺序拆成 3 个里程碑（目标确实很大时最多 4 个）。每个有 name（不超过 8 个字的名词短语，一眼能懂）和 doneWhen（一句话，怎样算做完，要能客观判断，不超过 24 个字）。
+3. firstStep：今天 20 分钟内能做完的第一小步，具体到一个动作，不超过 20 个字。
+
+只回复 JSON：{"kind":"","milestones":[{"name":"","doneWhen":""}],"firstStep":""}`,
+
+    react: ({ g, mile, text, logs }) => `${who(g)}
+
+当前阶段：「${clip(mile, 40)}」
+之前的记录（从旧到新）：
+${logLines(logs)}
+
+主人刚刚告诉你这次做了什么：${clip(text, 400)}
+
+回三样东西：
+- say：你对这次的反应，一句话，不超过 30 个字。要针对他具体做的内容，可以联系之前的记录。
+- ask：问他一个问题，不超过 25 个字。一句话就能答，而且答案值得留在日记里（一个判断、一个发现、一个没解决的疑问）。不要问感受，不要泛泛地问收获。
+- next：你建议的下一小步，接着他这次做的往下走，20 分钟内能做完的一个具体动作，不超过 18 个字。不用人设口吻，只写动作本身。
+只回复 JSON：{"say":"","ask":"","next":""}`,
+
+    welcome: ({ g, mile, gap, logs }) => `${who(g)}
+
+主人有 ${gap} 天没来了，今天回来了。你刚睡醒。帮他在一分钟内接上。
+当前阶段：「${clip(mile, 40)}」
+你们约好的下一小步：${g.promise.text ? clip(g.promise.text, 200) : '（没约）'}
+最近的记录（从旧到新）：
+${logLines(logs)}
+
+说三句话，每句一行：
+第一句：上次他做到了哪。
+第二句：当时他在琢磨或卡在什么。记录里看不出来就不要编，改成说已经做完了什么。
+第三句：今天最小的一步。以约好的下一小步为准；如果它明显超过 20 分钟，就切成其中最前面的一小块。
+不要责备，不要提他离开了多久，不要说欢迎回来。总共不超过 100 个字。只回复这三句。`,
+
+    shrink: ({ g }) => `一个人在做「${clip(g.title, 80)}」，他约好的下一小步是：「${clip(g.promise.text, 200)}」。他今天不想动。
+
+给出 3 个更小的版本，每个都是十分钟内能做完的一个具体动作，而且做完确实是在推进原来那一步。每个不超过 18 个字。
+只回复 JSON 数组：["","",""]`,
+
+    shell: ({ g, mile, logs }) => `一个人做完了长期目标中的一个阶段。根据他的日记，写两三句话刻在小伙伴蜕下的旧壳上，留作这个阶段的纪念。
+
+目标：「${clip(g.title, 80)}」，刚做完的阶段：「${clip(mile, 40)}」
+这一段的日记（从旧到新）：
+${logLines(logs)}
+
+写 2 到 3 句话，不超过 90 个字。只用日记里有的事实：具体做了什么、绕过什么弯、留下了什么判断。做得少就说少，不拔高，不用「恭喜」「太棒了」，不编日记里没有的细节。用第二人称「你」。只回复正文。`,
+
+    chatRules: ({ g, mile, logs }) => `${who(g)}
+
+当前阶段：「${clip(mile, 40)}」
+你们约好的下一小步：${g.promise.text ? clip(g.promise.text, 200) : '（没约）'}
+最近的记录（从旧到新）：
+${logLines(logs)}
+
+现在主人来找你聊。规则：
+- 每次回复不超过 80 个字。
+- 主人卡住或不想动时，不劝、不讲道理，给一个十分钟内能做的具体动作。
+- 主人要你帮忙理思路、列提纲、起个草稿时，直接给出内容，这时可以写到 200 字。
+- 聊的内容和这件事无关时，简短回应，然后把话带回这件事。
+- 每次回复都落在一个具体的下一步动作上。
+下面是主人说的话。`,
+  };
+  root.LANGS = { zh: Object.assign(zh, { P }) };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* 养一只 · 界面（第三版：它是活的）
+ * 主界面只有三样东西：它、它说的话、一个主按钮。
+ * 这一版的重心是质感：它会看着你、说话有声音、你讲的事会变成一颗光点飞进它嘴里、每个关键时刻都有一段演出。
+ * 可替换的三块收在适配器里：Store（存档放哪）、AI（它的脑子）、LANGS（什么语言）。
+ */
+(function () {
+  'use strict';
+  const P = window.Pet, C = window.Critter, Sfx = window.Sfx, Fx = window.Fx, DAY = P.DAY, KEY = 'yangyizhi.save.v2';
+  let S = P.create();
+  const ui = { looking: false, draft: null, thread: [], from: 0, shown: 0, step: 'idle', busy: false, lastLog: null, promiseLog: null, askQ: '', suggest: '', woke: false, justWoke: false, mood: '', moodT: 0, chat: [], chatN: 0, greetedFor: '', newItems: 0, dropN: 0, freshPart: '', pokes: [], lock: false };
+  const $ = id => document.getElementById(id);
+  const L = () => window.LANGS[S.lang] || window.LANGS.zh;
+  const t = (k, v) => { let s = L()[k]; if (v) for (const x in v) s = s.split('{' + x + '}').join(v[x]); return s; };
+  const fill = (s, v) => { for (const x in v) s = s.split('{' + x + '}').join(v[x]); return s; };
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const now = () => Date.now() + (S.offset || 0);
+  const tz = () => new Date().getTimezoneOffset();
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const mulStr = m => (Math.round(m * 10) / 10).toString();
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const reduce = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function rng(seed) { let a = seed >>> 0; return () => { a = a + 0x6D2B79F5 | 0; let x = Math.imul(a ^ a >>> 15, 1 | a); x = x + Math.imul(x ^ x >>> 7, 61 | x) ^ x; return ((x ^ x >>> 14) >>> 0) / 4294967296; }; }
+
+  /* ---------- 存档：账号云端优先，浏览器兜底 ---------- */
+  const Store = {
+    ref: null, kind: 'none', timer: 0, writing: false, pending: false,
+    loadLocal() { try { const r = localStorage.getItem(KEY); return r ? JSON.parse(r) : null; } catch (e) { return null; } },
+    saveLocal() { try { localStorage.setItem(KEY, JSON.stringify(S)); if (this.kind === 'none') this.kind = 'local'; } catch (e) { /* 存不了就只在内存里 */ } },
+    async connect() {
+      try {
+        if (!window.claude || !window.claude.use) return null;
+        const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
+        if (!db || !user) return null;
+        const uid = await user.id(); if (!uid) return null;
+        const ref = db.doc('data/users/' + uid + '/pet');
+        const snap = await Promise.race([ref.get(), new Promise((_, rej) => setTimeout(() => rej({ code: 'timeout' }), 8000))]);
+        this.ref = ref; this.kind = 'cloud';
+        return snap.exists ? clone(snap.data()) : null;
+      } catch (e) { this.ref = null; return null; }
+    },
+    save() {
+      S.rev = (S.rev || 0) + 1; S.savedAt = Date.now();
+      if (S.logs.length > 400) S.logs = S.logs.slice(-400);
+      this.saveLocal();
+      if (this.ref) { this.pending = true; clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), 700); }
+    },
+    async flush() {
+      if (this.writing || !this.ref) return; this.writing = true;
+      try { while (this.pending) { this.pending = false; await this.ref.set(clone(S)); } }
+      catch (e) { if (!e || e.code !== 'unavailable') { this.ref = null; if (this.kind === 'cloud') this.kind = 'local'; } }
+      this.writing = false;
+    },
+  };
+
+  /* ---------- 它的脑子：现在走 Claude，换别家只改这一块 ---------- */
+  const AI = {
+    fn: null, off: false,
+    get on() { return !!this.fn && !this.off; },
+    async init() { try { this.fn = (window.claude && window.claude.use) ? (await window.claude.use('sample')) || null : null; } catch (e) { this.fn = null; } this.sync(); },
+    sync() { document.body.classList.toggle('ai-on', this.on); },
+    fail(e) {
+      const c = e && e.code;
+      if (['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed'].includes(c)) { this.off = true; this.sync(); return L().err.off; }
+      if (c === 'cancelled') return '';
+      return L().err[c] || L().err.other;
+    },
+    async text(input, tier) { const r = await this.fn(input, { modelTier: tier || 'default', cache: false }); return String(r.text || '').trim(); },
+    async json(input, tier) { return await this.fn.json(input, { modelTier: tier || 'default', cache: false }); },
+  };
+
+  /* ---------- 小工具 ---------- */
+  let toastT = 0;
+  function toast(msg) { const el = $('toast'); el.textContent = msg; el.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('on'), 3600); }
+  function openSheet(html, focusId) { const w = $('sheet'); w.innerHTML = '<div class="sheet" role="dialog" aria-modal="true">' + html + '</div>'; w.hidden = false; const f = focusId && $(focusId); if (f) setTimeout(() => f.focus(), 30); }
+  function closeSheet() { const w = $('sheet'); w.hidden = true; w.innerHTML = ''; }
+  const sheetOpen = () => !$('sheet').hidden;
+  const curMile = g => g.miles[g.cur];
+  const goalLogs = (g, stage) => S.logs.filter(l => l.goalId === g.id && (stage == null || l.stage === stage));
+  const forPrompt = logs => logs.map(l => ({ date: L().date(l.at), text: l.text, q: l.q, a: l.a, next: l.next }));
+  const awayDays = g => (now() - (g.lastAdvAt || g.createdAt)) / DAY;
+  const hour = () => new Date(now()).getHours();
+  const phase = () => C.phaseOf(hour());
+  function say(k, style) {
+    const T = L().say[style || (S.goal ? S.goal.style : 'curious')]; let v = T[k];
+    if (k === 'hello') { const h = hour(); if (h >= 5 && h < 10 && Math.random() < 0.6) v = T.helloAM; else if ((h >= 23 || h < 5) && Math.random() < 0.7) v = T.helloLate; }
+    return Array.isArray(v) ? pick(v) : v;
+  }
+  function itemId(g, i) { const list = C.ITEMS.slice(), r = rng(g.createdAt % 2147483647); for (let k = list.length - 1; k > 0; k--) { const j = Math.floor(r() * (k + 1)); [list[k], list[j]] = [list[j], list[k]]; } return list[i % list.length]; }
+  const itemName = id => L().trinkets[id] || id;
+  function guessKind(title) { const w = L().kindWords; for (const k of ['read', 'learn', 'body', 'make']) if (w[k].test(title)) return k; return 'make'; }
+  const voiceOf = g => 470 + ((g.shape * 3 + g.hue * 2) % 7) * 48;                    // 每只伙伴说话的音高不一样
+  const sizeOf = text => text.length < 12 ? 's' : text.length > 40 ? 'l' : 'm';      // 只用来决定它长出什么，不影响成长多少
+  const tipOnce = k => { S.tips = S.tips || {}; if (S.tips[k]) return false; S.tips[k] = 1; return true; };
+  const stageBox = (look, moodName, o) => '<div class="stage ' + (o.phase || 'day') + ' ' + (o.cls || '') + '">' + C.scene(o.phase || 'day', look.hue, null, { noNest: true }) + '<div class="actor">' + C.critter(look, moodName, { fresh: o.fresh }) + '</div></div>';
+
+  /* ---------- 它的身体：表情、动作、眼神 ---------- */
+  const svgEl = () => { const a = $('actor'); return a && a.firstElementChild; };
+  function mood() { const g = S.goal; if (ui.mood) return ui.mood; if (!P.isAwake(g, now()) && !ui.woke) return 'sleep'; if (ui.busy) return 'think'; return ui.step === 'answer' ? 'ask' : 'awake'; }
+  function setMood() { const s = svgEl(); if (s && S.goal) { s.dataset.mood = mood(); if (ui.busy) setLook(3, -3.5); } }
+  function flash(m, ms) { ui.mood = m; clearTimeout(ui.moodT); ui.moodT = setTimeout(() => { ui.mood = ''; setMood(); }, ms || 2200); setMood(); }
+  const animT = {};
+  function anim(cls, ms) { const s = svgEl(); if (!s) return; s.classList.remove(cls); void s.getBoundingClientRect(); s.classList.add(cls); clearTimeout(animT[cls]); animT[cls] = setTimeout(() => { const x = svgEl(); if (x) x.classList.remove(cls); }, ms); }
+  function setLook(x, y) { const s = svgEl(); if (s) { s.style.setProperty('--px', x.toFixed(1)); s.style.setProperty('--py', y.toFixed(1)); } }
+  let lastPtr = 0, aimRaf = 0;
+  function aim(cx, cy) { const a = $('actor'); if (!a || ui.busy) return; const r = a.getBoundingClientRect(), dx = cx - (r.left + r.width / 2), dy = cy - (r.top + r.height * 0.45), d = Math.hypot(dx, dy) || 1, m = Math.min(1, d / 140) * 4.2; setLook(dx / d * m, dy / d * m * 0.8); }
+  document.addEventListener('pointermove', e => { lastPtr = Date.now(); if (!aimRaf) aimRaf = requestAnimationFrame(() => { aimRaf = 0; aim(e.clientX, e.clientY); }); }, { passive: true });
+  setInterval(() => {                                                                 // 没人动鼠标的时候，它自己东看看西看看；你在打字，它就看着输入框
+    if (Date.now() - lastPtr < 2500 || ui.busy || !svgEl()) return;
+    const f = document.activeElement; if (f && f.tagName === 'INPUT' && f.closest('#f-talk')) { const r = f.getBoundingClientRect(); aim(r.left + r.width * 0.3, r.top); return; }
+    if (Math.random() < 0.5) setLook((Math.random() - 0.5) * 7, (Math.random() - 0.5) * 3); else setLook(0, 0);
+  }, 2300);
+  const talkOn = v => { const s = svgEl() || ($('ob-pet') && $('ob-pet').firstElementChild); if (s) s.classList.toggle('talking', v); };
+  const mouth = () => { const r = $('actor').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height * 0.6]; };
+
+  /* ---------- 打字机：它的话一个字一个字出来，边说边嘟嘟 ---------- */
+  let typeGen = 0, typing = [];
+  function finishTyping() { typeGen++; for (const x of typing) { x.tx.textContent = x.full; if (x.rest) x.rest.textContent = ''; if (x.acts) x.acts.hidden = false; } typing = []; talkOn(false); }
+  async function typeInto(tx, rest, full, pitch, style, gen) {
+    for (let i = 1; i <= full.length; i++) {
+      if (gen !== typeGen || !tx.isConnected) return false;
+      tx.textContent = full.slice(0, i); if (rest) rest.textContent = full.slice(i);
+      const ch = full[i - 1]; if (i % 2 === 1 && /\S/.test(ch)) Sfx.blip(pitch, style);
+      await sleep('，。！？…：\n'.includes(ch) ? 120 : 30);
+    }
+    return true;
+  }
+  function typeNew() {
+    const els = Array.from(document.querySelectorAll('#thread .msg.pet[data-full]')); if (!els.length) return;
+    finishTyping(); const gen = ++typeGen, g = S.goal;
+    typing = els.map(el => ({ el, full: el.dataset.full, tx: el.querySelector('.tx'), rest: el.querySelector('.rest'), acts: el.querySelector('.acts') }));
+    for (const x of typing) { x.el.removeAttribute('data-full'); if (x.acts) x.acts.hidden = true; }
+    $('live').textContent = typing.map(x => x.full).join(' ');
+    if (reduce()) { finishTyping(); return; }
+    (async () => {
+      for (const x of typing.slice()) {
+        talkOn(true); const ok = await typeInto(x.tx, x.rest, x.full, g ? voiceOf(g) : 600, g ? g.style : 'curious', gen); if (!ok) return;
+        talkOn(false); if (x.acts) x.acts.hidden = false; await sleep(180); if (gen !== typeGen) return;
+      }
+      typing = [];
+    })();
+  }
+
+  /* ---------- 对话 ---------- */
+  const push = (kind, text, acts) => { ui.thread.push({ t: kind, text, acts: acts || null }); };
+  function fresh() { ui.from = ui.thread.length; }                                   // 新的一轮对话：屏幕上只留这一轮
+  function announceFound() {
+    const g = S.goal; if (!g || !g.unseen) return;
+    const n = g.unseen, names = []; for (let i = g.trinkets - n; i < g.trinkets; i++) names.push(itemName(itemId(g, i)));
+    push('sys', t('sysFound', { name: esc(g.name), list: names.slice(-3).join('、') + (n > 3 ? ' ' + t('sysMore', { n }) : '') }));
+    if (tipOnce('treasure')) push('pet', L().tips.treasure);
+    ui.newItems = Math.min(24, ui.newItems + n); ui.dropN = Math.min(7, n); g.unseen = 0; Store.save(); Sfx.found();
+  }
+  function greet() {
+    const g = S.goal; if (!g || ui.greetedFor === g.id) return; ui.greetedFor = g.id; fresh();
+    P.tick(S, now());
+    const away = awayDays(g), last = goalLogs(g).slice(-1)[0], m = P.litterMul(S, now());
+    if (g.adv === 0 && tipOnce('intro')) {
+      const T = L().tips; push('pet', fill(T.intro1, { name: g.name, title: g.title })); if (g.promise.text) push('pet', T.intro3);
+      Store.save(); return;
+    }
+    if (away >= 2) {
+      push('pet', say('back').replace('{d}', L().days(Math.floor(away))) + (last ? '\n' + say('backLast').replace('{x}', last.text.slice(0, 50)) : ''),
+        [{ act: 'welcomeAI', label: t('welcomeAI'), ai: true }].concat(away >= 10 ? [{ act: 'release', label: t('rtRelease') }] : []));
+      if (m > 1.05) push('sys', t('sysLitter', { m: mulStr(m) }));
+    } else push('pet', say(ui.justWoke ? 'woke' : 'hello'));
+    if (ui.justWoke && tipOnce('sleep')) push('pet', L().tips.sleep);
+    ui.justWoke = false; announceFound(); Store.saveLocal();
+  }
+
+  /* ---------- 路由与导航 ---------- */
+  function route() { const h = location.hash.replace('#', ''); return h === 'diary' || h === 'home' ? h : 'pet'; }
+  function navHTML(v) {
+    if (!S.goal && !S.habitat.length) return '';                                       // 第一次来：什么导航都不需要
+    const link = (id, label) => '<a class="navlink" href="#' + id + '"' + (v === id ? ' aria-current="page"' : '') + '>' + label + '</a>';
+    return (S.logs.length ? link('diary', t('navDiary')) : '') + (S.habitat.length ? link('home', t('navHome')) : '') + '<button type="button" class="navlink" data-act="settings" id="btn-settings">' + t('navSet') + '</button>';
+  }
+  function render() {
+    finishTyping(); const v = route(); $('nav').innerHTML = navHTML(v);
+    if (S.goal) { P.tick(S, now()); if (P.isAwake(S.goal, now()) || ui.woke) greet(); }
+    $('view').innerHTML = v === 'diary' ? viewDiary() : v === 'home' ? viewHome() : S.goal ? viewPet() : viewOnboard();
+    ui.dropN = 0; ui.freshPart = ''; afterThread();
+  }
+  function afterThread() { ui.shown = ui.thread.length; typeNew(); }
+
+  /* ---------- 引导：一屏一问 ---------- */
+  const newDraft = () => ({ step: 1, title: '', kind: 'make', miles: null, first: '', edit: false, cracks: 0, hatched: false, name: pick(L().names), style: 'curious', hue: Math.floor(Math.random() * C.HUES.length), shape: Math.floor(Math.random() * C.SHAPES), busy: false, err: '' });
+  const draftLook = d => ({ name: d.name, shape: d.shape, hue: d.hue, stage: 0, level: 0, parts: [], patches: 0 });
+  const eggStage = (d, cls, inner) => '<div class="stage eggstage ' + phase() + ' ' + (cls || '') + '">' + C.scene(phase(), d.hue, null, { noNest: true }) + inner + '</div>';
+  function viewOnboard() {
+    const d = ui.draft || (ui.draft = newDraft()), again = S.habitat.length > 0;
+    const dots = '<div class="dots" aria-hidden="true">' + [1, 2, 3].map(i => '<i' + (i <= d.step ? ' class="on"' : '') + '></i>').join('') + '</div>';
+    const eggCard = eggStage(d, '', '<div class="actor" id="egg">' + C.egg(d.hue, d.kind, 0) + '</div>');
+    if (ui.looking) return '<div class="ob">' + eggCard + '<p class="note">' + t('obLooking') + '</p></div>';
+    if (d.step === 1) return '<form class="ob" id="f-ob1" novalidate>' + dots + '<h1>' + t(again ? 'ob1Again' : 'ob1Title') + '</h1><p class="lead">' + t(again ? 'ob1AgainLead' : 'ob1Lead') + '</p>' + eggCard +
+      '<div class="field"><label for="ob-title">' + t('ob1Q') + '</label><input type="text" id="ob-title" data-bind="title" maxlength="60" autocomplete="off" placeholder="' + esc(t('ob1Ph')) + '" value="' + esc(d.title) + '">' +
+      '<div class="chips">' + L().ob1Ex.map(x => '<button type="button" class="chip" data-act="obEx" data-x="' + esc(x) + '">' + esc(x) + '</button>').join('') + '</div></div>' +
+      (d.err ? '<p class="err">' + esc(d.err) + '</p>' : '') +
+      '<button type="submit" class="btn primary cta"' + (d.busy ? ' disabled' : '') + '>' + t(d.busy ? 'ob1Busy' : 'ob1Next') + '</button></form>';
+    if (d.step === 2) {
+      const rows = d.miles.map((m, i) => d.edit
+        ? '<div class="level"><span class="i num">' + (i + 1) + '</span><div class="two"><input type="text" id="ob-m' + i + '" data-mi="' + i + '" data-mf="name" maxlength="20" aria-label="' + esc(t('ob2MileName')) + '" placeholder="' + esc(t('ob2MileName')) + '" value="' + esc(m.name) + '"><input type="text" id="ob-w' + i + '" data-mi="' + i + '" data-mf="doneWhen" maxlength="50" aria-label="' + esc(t('ob2MileWhen')) + '" placeholder="' + esc(t('ob2MileWhen')) + '" value="' + esc(m.doneWhen) + '"></div>' + (d.miles.length > 2 ? '<button type="button" class="linkbtn" data-act="obDelMile" data-i="' + i + '">' + t('ob2Del') + '</button>' : '<span></span>') + '</div>'
+        : '<div class="level"><span class="i num">' + (i + 1) + '</span><div><div class="nm">' + esc(m.name) + '</div>' + (m.doneWhen ? '<div class="dw">' + esc(m.doneWhen) + '</div>' : '') + '</div><span></span></div>').join('');
+      return '<form class="ob" id="f-ob2" novalidate>' + dots + '<h1>' + t('ob2Title', { n: d.miles.length }) + '</h1><p class="lead">' + t('ob2Lead') + '</p><div class="levels">' + rows + '</div>' +
+        '<div class="btns" style="margin-top:-6px">' + (d.edit && d.miles.length < 5 ? '<button type="button" class="linkbtn" data-act="obAddMile">' + t('ob2Add') + '</button>' : '') + '<button type="button" class="linkbtn" data-act="obEdit">' + t(d.edit ? 'ob2EditDone' : 'ob2Edit') + '</button></div>' +
+        '<div class="field"><label for="ob-first">' + t('ob2First') + '</label><input type="text" id="ob-first" data-bind="first" maxlength="100" autocomplete="off" placeholder="' + esc(t('ob2FirstPh')) + '" value="' + esc(d.first) + '"><span class="hint">' + t('ob2FirstHint') + '</span></div>' +
+        (d.err ? '<p class="err">' + esc(d.err) + '</p>' : '') + '<button type="submit" class="btn primary cta">' + t('ob2Go') + '</button><div style="text-align:center"><button type="button" class="linkbtn" data-act="obBack">' + t('ob2Back') + '</button></div></form>';
+    }
+    if (!d.hatched) return '<div class="ob">' + dots + '<h1>' + t('ob3Tap') + '</h1><p class="lead">' + t('ob3TapLead') + '</p>' +
+      eggStage(d, 'big', '<button type="button" class="actor" id="eggbtn" data-act="crack" aria-label="' + esc(t('ob3Egg')) + '">' + C.egg(d.hue, d.kind, d.cracks) + '</button><div class="taphint" id="taphint">' + L().ob3TapHint[Math.min(2, d.cracks)] + '</div>') + '</div>';
+    return '<form class="ob" id="f-ob3" novalidate>' + dots + '<h1>' + t('ob3Title') + '</h1>' +
+      '<div class="stage wide ' + phase() + '">' + C.scene(phase(), d.hue, null, { noNest: true }) + '<div class="actor" id="ob-pet">' + C.critter(draftLook(d), 'awake') + '</div></div>' +
+      '<div class="thread" style="margin-top:0"><div class="msg pet lead"><span class="tx" id="ob-sample">' + esc(say('sample', d.style)) + '</span></div></div>' +
+      '<div class="field"><span class="lab">' + t('ob3Voice') + '</span><div class="chips">' + Object.keys(L().styles).map(k => '<button type="button" class="chip" data-act="obStyle" data-x="' + k + '" aria-pressed="' + (d.style === k) + '">' + L().styles[k] + '</button>').join('') + '</div></div>' +
+      '<div class="field"><label for="ob-name">' + t('ob3Name') + '</label><div class="namerow"><input type="text" id="ob-name" data-bind="name" maxlength="8" autocomplete="off" value="' + esc(d.name) + '"><button type="button" class="btn small" data-act="obReroll">' + t('ob3Reroll') + '</button></div></div>' +
+      '<button type="submit" class="btn primary cta">' + t('ob3Go') + '</button></form>';
+  }
+  const defMiles = () => L().obDefault.map(x => ({ name: x[0], doneWhen: x[1] }));
+  async function ob1Submit() {
+    const d = ui.draft; if (d.busy) return; d.title = $('ob-title').value.trim(); if (!d.title) { d.err = t('ob1Need'); render(); $('ob-title').focus(); return; }
+    d.err = ''; d.kind = guessKind(d.title);
+    if (AI.on) {
+      d.busy = true; render();
+      try {
+        const r = await AI.json(L().P.plan({ title: d.title }));
+        const ms = (r && Array.isArray(r.milestones) ? r.milestones : []).map(m => ({ name: String(m && m.name || '').trim().slice(0, 20), doneWhen: String(m && m.doneWhen || '').trim().slice(0, 50) })).filter(m => m.name).slice(0, 5);
+        if (ms.length >= 2) { d.miles = ms; d.first = String(r.firstStep || '').trim().slice(0, 100); if (L().kinds[r.kind]) d.kind = r.kind; }
+      } catch (e) { AI.fail(e); }
+      d.busy = false; if (S.goal) return;
+    }
+    if (!d.miles) d.miles = defMiles();                                                // 连不上就给一份通用的三关，照样能往下走
+    d.step = 2; render(); window.scrollTo({ top: 0 }); if (!d.first) $('ob-first').focus();
+  }
+  function ob2Submit() {
+    const d = ui.draft; d.miles = d.miles.map(m => ({ name: m.name.trim(), doneWhen: m.doneWhen.trim() })).filter(m => m.name);
+    if (d.miles.length < 2) { d.err = t('ob2NeedMiles'); d.edit = true; while (d.miles.length < 2) d.miles.push({ name: '', doneWhen: '' }); render(); return; }
+    if (!d.first.trim()) { d.err = t('ob2NeedFirst'); render(); $('ob-first').focus(); return; }
+    d.err = ''; d.edit = false; d.step = 3; d.cracks = 0; d.hatched = false; render(); window.scrollTo({ top: 0 }); $('eggbtn').focus({ preventScroll: true });
+  }
+  function actCrack() {
+    const d = ui.draft, b = $('eggbtn'); if (!b || d.hatched || d.cracks >= 3) return;
+    d.cracks++; b.innerHTML = C.egg(d.hue, d.kind, d.cracks); b.firstElementChild.classList.add('hit'); Sfx.crack(d.cracks); Sfx.buzz(14);
+    const [x, y] = Fx.center(b), hue = C.HUES[d.hue]; Fx.burst(x, y - 20, { kind: 'shard', colors: [hue[1], '#fff', hue[0]], count: 5, speed: 200, size: 6, life: 0.6 });
+    if (d.cracks < 3) { $('taphint').textContent = L().ob3TapHint[d.cracks]; return; }
+    $('taphint').hidden = true;
+    setTimeout(() => {
+      if (ui.draft !== d || S.goal) return;
+      Sfx.hatch(); Sfx.buzz(30); Fx.burst(x, y, { kind: 'shard', colors: [hue[1], hue[0], '#fff', hue[2]], count: 26, speed: 380, size: 11 }); Fx.ring(x, y, '#fff');
+      d.hatched = true; render(); const s = $('ob-pet').firstElementChild; s.classList.add('popin'); setTimeout(() => { s.classList.remove('popin'); s.classList.add('jump'); setTimeout(() => s.classList.remove('jump'), 760); }, 620);
+      sampleSay(d);
+    }, reduce() ? 0 : 340);
+  }
+  function sampleSay(d) { const el = $('ob-sample'); if (!el) return; finishTyping(); const gen = ++typeGen, full = say('sample', d.style); if (reduce()) { el.textContent = full; return; } talkOn(true); typeInto(el, null, full, voiceOf(d), d.style, gen).then(() => { if (gen === typeGen) talkOn(false); }); }
+  function ob3Submit() {
+    const d = ui.draft;
+    P.newGoal(S, now(), { title: d.title, kind: d.kind, style: d.style, name: d.name.trim() || L().names[0], hue: d.hue, shape: d.shape, miles: d.miles, promise: d.first.trim() });
+    ui.draft = null; ui.thread = []; ui.from = 0; ui.step = 'idle'; ui.woke = true; ui.greetedFor = ''; ui.chat = []; ui.chatN = 0; if (S.tips) delete S.tips.intro;
+    Store.save(); render(); window.scrollTo({ top: 0 }); anim('jump', 760);
+  }
+
+  /* ---------- 主界面 ---------- */
+  function sceneItems(g) { const out = []; for (let i = Math.max(0, g.trinkets - 7); i < g.trinkets; i++) out.push({ id: itemId(g, i), fresh: i >= g.trinkets - ui.dropN }); return out; }
+  const barPct = li => li.max ? 100 : Math.max(5, li.into / li.need * 100);
+  function petHTML() {
+    const g = S.goal, n = now(), li = P.levelInfo(g.xp), awake = P.isAwake(g, n);
+    return C.scene(phase(), g.hue, sceneItems(g)) +
+      '<div class="nameplate"><h1>' + esc(g.name) + '</h1><span class="pill' + (awake ? '' : ' sleep') + '" id="pill">' + t(awake ? 'stAwake' : ui.woke ? 'stGroggy' : 'stAsleep') + '</span></div>' +
+      '<button type="button" class="actor" id="actor" data-act="poke" aria-label="' + esc(g.name) + '">' + C.critter(P.lookOf(g), mood(), { fresh: ui.freshPart }) + '</button>' +
+      '<div class="growbar" id="growbar"><span>' + t(li.max ? 'growMax' : 'grow') + '</span>' + (li.max ? '' : '<div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="' + li.need + '" aria-valuenow="' + li.into + '"><i id="growfill" style="width:' + barPct(li) + '%"></i></div>') + '</div>';
+  }
+  const stageCls = () => 'stage ' + phase() + (ui.step !== 'idle' ? ' compact' : '');
+  function renderPet() { const el = $('pet'); if (el) { el.className = stageCls(); el.innerHTML = petHTML(); ui.dropN = 0; ui.freshPart = ''; } }
+  function gainBar(pct) { const f = $('growfill'), b = $('growbar'); if (!f) return; f.style.width = pct + '%'; b.classList.remove('gain'); void b.offsetWidth; b.classList.add('gain'); }
+  function celebrate() { const a = $('actor'); if (!a) return; anim('jump', 760); const [x, y] = Fx.center(a); Fx.ring(x, y, '#FFD23F'); Fx.burst(x, y, { kind: 'star', count: 14, up: true, speed: 340, spread: 2.6 }); Sfx.levelUp(); Sfx.buzz(24); flash('happy', 2200); }
+  /* 你讲的事变成一颗光点，飞进它嘴里；它咽下去，长一点 */
+  function feed(from, r) {
+    const g = S.goal; if (!r.xp) return;
+    const land = () => {
+      if (!S.goal || S.goal.id !== g.id || !$('actor')) return;
+      anim('gulp', 560); Sfx.gulp(); Sfx.buzz(12);
+      const b = $('growbar'); if (b) { const p = Fx.center(b); Fx.text(p[0], p[1] - 16, '+' + r.xp); }
+      if (r.up) { gainBar(100); setTimeout(() => { if (S.goal && S.goal.id === g.id && $('pet')) { renderPet(); celebrate(); } }, 520); }
+      else { const li = P.levelInfo(g.xp); if (li.max !== !$('growfill')) renderPet(); else gainBar(barPct(li)); Sfx.grow(); flash('happy', 1500); }
+    };
+    if (!from || !$('actor')) { land(); return; }
+    Sfx.send(); Fx.orb(from, mouth(), C.HUES[g.hue % C.HUES.length][0], land);
+  }
+  function threadHTML() {
+    let h = '', prevPet = false;
+    for (let i = ui.from; i < ui.thread.length; i++) {
+      const m = ui.thread[i], isNew = i >= ui.shown, nw = isNew ? ' new' : '';
+      const acts = m.acts ? '<div class="acts">' + m.acts.map(a => '<button type="button" class="chip' + (a.ai ? ' ai-only' : '') + '" data-act="' + a.act + '" data-i="' + i + '"' + (a.x != null ? ' data-x="' + esc(a.x) + '"' : '') + '>' + esc(a.label) + '</button>').join('') + '</div>' : '';
+      if (m.t === 'sys') h += '<div class="sys' + nw + '">' + m.text + '</div>';
+      else if (m.t === 'pet') h += '<div class="msg pet' + (prevPet ? '' : ' lead') + nw + '"' + (isNew ? ' data-full="' + esc(m.text) + '"' : '') + '><span class="tx">' + (isNew ? '' : esc(m.text)) + '</span>' + (isNew ? '<span class="rest" aria-hidden="true">' + esc(m.text) + '</span>' : '') + acts + '</div>';
+      else h += '<div class="msg me' + nw + '">' + esc(m.text) + '</div>';
+      prevPet = m.t === 'pet';
+    }
+    if (ui.busy) h += '<div class="msg pet thinking' + (prevPet ? '' : ' lead') + '" role="status" aria-label="' + esc(t('thinking', { name: S.goal.name })) + '"><i></i><i></i><i></i></div>';
+    return h;
+  }
+  function composerHTML() {
+    const g = S.goal, st = ui.step;
+    const inrow = (id, ph, label, val) => '<div class="inrow"><input type="text" id="' + id + '" maxlength="300" autocomplete="off" enterkeyhint="send" aria-label="' + esc(ph) + '" placeholder="' + esc(ph) + '" value="' + esc(val || '') + '"><button type="submit" class="btn primary">' + label + '</button></div>';
+    const sub = (act, label) => '<div class="sublinks"><button type="button" class="linkbtn" data-act="' + act + '">' + label + '</button></div>';
+    if (ui.busy) return '';
+    if (st === 'report') return inrow('rp-text', t('rpPh'), t('send')) + sub('cancelTalk', t('cancel'));
+    if (st === 'answer') return inrow('an-text', t('anPh'), t('send')) + sub('skipAnswer', t('skip'));
+    if (st === 'promise') {
+      const chips = []; if (ui.suggest) chips.push(['pickSuggest', ui.suggest]); if (g.promise.text && g.promise.text !== ui.suggest) chips.push(['keepPromise', t('pmKeep', { x: g.promise.text })]);
+      return (chips.length ? '<div class="chips">' + chips.map(c => '<button type="button" class="chip" data-act="' + c[0] + '">' + esc(c[1]) + '</button>').join('') + '</div>' : '') + inrow('pm-text', t('pmPh'), t('pmOk')) + sub('skipPromise', t('pmSkip'));
+    }
+    if (st === 'editPromise') return inrow('pm-text', t('pmPh'), t('pmOk'), g.promise.text) + sub('cancelTalk', t('cancel'));
+    if (st === 'chat') return inrow('ch-text', t('chPh'), t('send')) + '<p class="hint">' + t('chHint') + '</p>' + sub('cancelTalk', t('chEnd'));
+    if (!P.isAwake(g, now()) && !ui.woke) return '<button type="button" class="btn primary cta" data-act="wake">' + t('btnWake') + '</button>';
+    return '<button type="button" class="btn primary cta" data-act="report">' + t('btnReport') + '</button><div class="sublinks">' + (g.promise.text ? '<button type="button" class="linkbtn" data-act="stuck">' + t('btnStuck') + '</button>' : '') + '<button type="button" class="linkbtn ai-only" data-act="chat">' + t('btnChat') + '</button></div>';
+  }
+  function talkHTML() {
+    const g = S.goal, has = !!g.promise.text, showNote = ui.step === 'idle' && !ui.busy && (P.isAwake(g, now()) || ui.woke);
+    return '<div class="thread" id="thread">' + threadHTML() + '</div>' +
+      (showNote ? '<div class="nextnote"><div><div class="k">' + t('nextLabel') + '</div><div class="v' + (has ? '' : ' empty') + '">' + esc(has ? g.promise.text : t('nextEmpty')) + '</div></div><button type="button" class="linkbtn" data-act="editPromise">' + t('nextEdit') + '</button></div>' : '') +
+      '<form class="composer" id="f-talk" novalidate>' + composerHTML() + '</form>';
+  }
+  function rowsHTML() {
+    const g = S.goal; let ic = ''; for (let i = Math.max(0, g.trinkets - 3); i < g.trinkets; i++) ic += C.glyph(itemId(g, i), 26);
+    return '<button type="button" class="row" data-act="route"><span class="t">' + t('stageRow', { i: g.cur + 1, name: esc(curMile(g).name) }) + '</span><span class="c num">' + t('stageCount', { a: g.cur + 1, b: g.miles.length }) + '</span></button>' +
+      (g.trinkets ? '<button type="button" class="row" data-act="treasure"><span class="t">' + t('treasRow') + '</span><span class="ic">' + ic + '</span><span class="c num">' + g.trinkets + '</span></button>' : '');
+  }
+  function viewPet() { return '<div class="stagewrap"><section class="' + stageCls() + '" id="pet">' + petHTML() + '</section></div><section id="talk">' + talkHTML() + '</section><section class="rows" id="rows">' + rowsHTML() + '</section>'; }
+  function renderTalk(focusId) {
+    const el = $('talk'); if (!el) return; finishTyping(); el.innerHTML = talkHTML(); const grew = ui.thread.length > ui.shown; afterThread();
+    const st = $('pet'); if (st) st.className = stageCls(); setMood();
+    const r = $('rows'); if (r) r.innerHTML = rowsHTML();
+    const f = focusId && $(focusId); if (f) f.focus({ preventScroll: true });
+    if (grew || focusId) { const tgt = $('f-talk'); if (tgt) setTimeout(() => tgt.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 60); }
+  }
+  function tickLive() {
+    const g = S.goal; if (!g || route() !== 'pet' || sheetOpen() || ui.lock || !$('pet')) return; const was = P.isAwake(g, now() - 1000), found = P.tick(S, now());
+    if (found && ui.step === 'idle' && !ui.busy && (P.isAwake(g, now()) || ui.woke)) { announceFound(); renderPet(); renderTalk(); }
+    if (was !== P.isAwake(g, now())) { renderPet(); renderTalk(); }
+    const ph = phase(); if (!$('pet').classList.contains(ph)) renderPet();                // 天色变了
+  }
+
+  /* ---------- 对话流程：讲一句 → 它回一句并问一句 → 约下一小步 ---------- */
+  const origin = id => { const el = id && $(id); return el ? Fx.center(el) : null; };
+  function sysBonus(r, mult) { const g = S.goal, bits = []; if (mult > 1.05) bits.push(t('sysBonus', { m: mulStr(mult) })); if (r.up) bits.push('<b>' + t('sysUp', { name: esc(g.name) }) + '</b>'); if (bits.length) push('sys', bits.join(' · ')); }
+  async function submitReport() {
+    const g = S.goal, text = $('rp-text').value.trim(); if (!text) { $('rp-text').focus(); return; }
+    const from = origin('rp-text'), prior = forPrompt(goalLogs(g).slice(-6));
+    const r = P.report(S, now(), { text, size: sizeOf(text), tz: tz() }), log = r.log; ui.lastLog = ui.promiseLog = log.id; ui.woke = true; ui.suggest = ''; Store.save();
+    push('me', text); sysBonus({ up: r.up }, log.mult); if (log.patched) push('sys', t('sysPatch', { name: esc(g.name) }));
+    let sayText = say('react'), ask = L().askFallback[(g.adv - 1) % L().askFallback.length];
+    ui.step = 'answer'; ui.busy = true; renderTalk(); feed(from, { xp: log.xp, up: r.up });
+    const wait = sleep(reduce() ? 0 : 900);                                            // 至少等它把这一口咽下去
+    if (AI.on) { try { const j = await AI.json(L().P.react({ g, mile: curMile(g).name, text, logs: prior }), 'quick'); if (j && j.say) sayText = String(j.say).slice(0, 80); if (j && j.ask) ask = String(j.ask).slice(0, 60); if (j && j.next) ui.suggest = String(j.next).trim().slice(0, 40); } catch (e) { AI.fail(e); } }
+    await wait; if (!S.goal || S.goal.id !== g.id) return;
+    log.reply = sayText; ui.askQ = ask; ui.busy = false; Store.save();
+    push('pet', sayText + '\n' + ask); renderTalk('an-text');
+  }
+  function toPromise() { ui.step = 'promise'; push('pet', say('askPromise')); renderTalk('pm-text'); }
+  function submitAnswer() {
+    const a = $('an-text').value.trim(); if (a.length < 2) { $('an-text').focus(); return; }
+    const from = origin('an-text'), r = P.answer(S, now(), ui.lastLog, ui.askQ, a); Store.save();
+    push('me', a); sysBonus(r, 1); toPromise(); feed(from, r);
+  }
+  function finishPromise(text, fromLog) {
+    const g = S.goal, from = origin('pm-text'), r = P.promise(S, now(), text, fromLog ? ui.promiseLog : null); Store.save();
+    push('me', text); const keep = ui.thread.length; sysBonus(r, 1);
+    push('pet', say('promised')); if (g.cur === 0 && g.stageAdv >= 2 && tipOnce('stage')) push('pet', fill(L().tips.stage, { mile: curMile(g).name }));
+    ui.step = 'idle'; ui.promiseLog = null; Store.save();
+    if (fromLog) { ui.from = keep; ui.shown = keep; }                                  // 一轮讲完，屏幕回到最简单的样子；整段对话在日记里
+    renderTalk(); if (fromLog) window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (r.xp) feed(from, r); else { const p = $('pill'); if (p) { p.textContent = t('stAwake'); p.classList.remove('sleep'); } flash('happy', 1400); }
+  }
+  function submitPromise() { const x = $('pm-text').value.trim(); if (!x) { $('pm-text').focus(); return; } finishPromise(x, ui.step === 'promise'); }
+  async function submitChat() {
+    const g = S.goal, text = $('ch-text').value.trim(); if (!text || !AI.on) return;
+    push('me', text); ui.busy = true; renderTalk();
+    const turns = [{ role: 'user', content: L().P.chatRules({ g, mile: curMile(g).name, logs: forPrompt(goalLogs(g).slice(-8)) }) }].concat(ui.chat, [{ role: 'user', content: text }]);
+    try {
+      const reply = (await AI.text(turns, 'quick')).slice(0, 600); if (!S.goal || S.goal.id !== g.id) return;
+      ui.chat.push({ role: 'user', content: text }, { role: 'assistant', content: reply }); if (ui.chat.length > 12) ui.chat = ui.chat.slice(-12); ui.chatN++; push('pet', reply);
+    } catch (e) { const m = AI.fail(e); if (m) push('sys', esc(m)); }
+    ui.busy = false;
+    if (ui.chatN >= 6 || !AI.on) { if (ui.chatN >= 6) push('pet', say('chatEnd')); ui.step = 'idle'; renderTalk(); } else { ui.step = 'chat'; renderTalk('ch-text'); }
+  }
+  async function actStuck() {
+    const g = S.goal; let opts = L().stuckFallback; fresh();
+    if (AI.on) {
+      ui.busy = true; renderTalk();
+      try { const r = await AI.json(L().P.shrink({ g }), 'quick'); const o = (Array.isArray(r) ? r : []).map(x => String(x).trim().slice(0, 40)).filter(Boolean).slice(0, 3); if (o.length) opts = o; } catch (e) { AI.fail(e); }
+      if (!S.goal || S.goal.id !== g.id) return; ui.busy = false;
+    }
+    ui.step = 'idle'; push('pet', say('stuck'), opts.map(o => ({ act: 'pickPromise', label: o, x: o }))); renderTalk();
+  }
+  async function actWelcomeAI(el) {
+    const g = S.goal, msg = ui.thread[+el.dataset.i]; if (!AI.on || ui.busy) return; if (msg) msg.acts = null;
+    ui.busy = true; renderTalk();
+    try { const text = (await AI.text(L().P.welcome({ g, mile: curMile(g).name, gap: Math.floor(awayDays(g)), logs: forPrompt(goalLogs(g).slice(-6)) }))).slice(0, 400); if (S.goal && S.goal.id === g.id) push('pet', text); }
+    catch (e) { const m = AI.fail(e); if (m) push('sys', esc(m)); }
+    ui.busy = false; ui.step = 'idle'; renderTalk();
+  }
+  function actPoke() {
+    const g = S.goal; if (!g || ui.lock) return; const awake = P.isAwake(g, now()) || ui.woke;
+    anim('poke', 460); Sfx.poke(awake ? voiceOf(g) : voiceOf(g) * 0.6); Sfx.buzz(8);
+    const tn = Date.now(); ui.pokes = ui.pokes.filter(x => tn - x < 4000); ui.pokes.push(tn);
+    const T = L().say[g.style], text = !awake ? 'Zzz…' : ui.pokes.length >= 5 ? T.quipMany : pick(T.quip); if (ui.pokes.length >= 5) ui.pokes = [];
+    if (awake && !ui.busy) flash('happy', 1100);
+    const old = $('quip'); if (old) old.remove(); const q = document.createElement('div'); q.className = 'quip'; q.id = 'quip'; q.textContent = text; $('pet').appendChild(q); setTimeout(() => { if (q.isConnected) q.remove(); }, 1700);
+  }
+
+  /* ---------- 二级：路线、宝贝、证书、放归、设置 ---------- */
+  const shellIcon = hue => { const h = C.HUES[hue % C.HUES.length]; return '<svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true"><path d="M6,18 L11,12 L16,18 L20,11 L25,18 L29,12 L34,18 C34,30 28,35 20,35 C12,35 6,30 6,18Z" fill="' + h[1] + '" stroke="' + C.INK + '" stroke-width="3" stroke-linejoin="round"/><path d="M12,26 Q20,31 28,26" fill="none" stroke="' + h[0] + '" stroke-width="3" stroke-linecap="round"/></svg>'; };
+  function trailHTML(miles, cur, look, hue) {
+    return '<ol class="trail">' + miles.map((m, i) => { const st = i < cur ? 'done' : i === cur ? 'cur' : 'todo';
+      return '<li class="' + st + '"><span class="node num">' + (st === 'done' ? shellIcon(hue) : st === 'cur' && look ? C.critter(look, 'happy', { plain: true }) : i + 1) + '</span><div><div class="nm">' + esc(m.name) + (st === 'cur' && look ? '<span class="tagnow">' + t('rtCur') + '</span>' : '') + '</div>' +
+        (st === 'done' ? '<div class="dw">' + t('rtDone', { date: L().date(m.doneAt), part: m.card && m.card.part ? L().parts[m.card.part][0] : '' }) + '</div>' + (m.card && m.card.text ? '<div class="shell">' + esc(m.card.text) + '</div>' : '') : m.doneWhen ? '<div class="dw">' + esc(m.doneWhen) + '</div>' : '') + '</div></li>'; }).join('') + '</ol>';
+  }
+  function sheetRoute() {
+    const g = S.goal;
+    openSheet('<h2>' + t('rtTitle') + '</h2>' + trailHTML(g.miles, g.cur, P.lookOf(g), g.hue) +
+      '<button type="button" class="btn primary cta" data-act="moltGo"' + (g.stageAdv > 0 ? '' : ' disabled') + '>' + t('rtBtn') + '</button>' + (g.stageAdv > 0 ? '' : '<p class="note" style="text-align:center">' + t('rtNeed') + '</p>') +
+      '<div class="sublinks"><button type="button" class="linkbtn" data-act="close">' + t('close') + '</button><button type="button" class="linkbtn" data-act="release">' + t('rtRelease') + '</button></div>');
+  }
+  function certHTML(a) {
+    const days = Math.max(1, Math.round((a.endedAt - a.createdAt) / DAY)), parts = a.look.parts.map(p => L().parts[p][0]);
+    return '<div class="cert">' + stageBox(a.look, a.result === 'grown' ? 'happy' : 'awake', { cls: 'wide' }) + '<div><div class="who">' + esc(a.look.name) + '</div><div class="what"><span class="tag ' + a.result + '">' + t(a.result === 'grown' ? 'certDone' : 'certLeft') + '</span>' + esc(a.title) + '</div></div>' +
+      '<div class="facts"><span class="fact">' + L().date(a.createdAt) + ' – ' + L().date(a.endedAt) + '</span><span class="fact num">' + L().days(days) + '</span><span class="fact num">' + t('certAdv', { n: a.adv }) + '</span><span class="fact num">' + t('certItems', { n: a.trinkets }) + '</span>' + (parts.length ? '<span class="fact">' + t('certParts', { list: parts.join('、') }) + '</span>' : '') + '</div>' +
+      (a.reason ? '<p class="note">' + esc(a.reason) + '</p>' : '') + '</div>';
+  }
+  async function actMoltGo() {
+    const g = S.goal; if (!g || g.stageAdv === 0 || ui.lock) return;
+    const stage = g.cur, mileName = curMile(g).name, info = { name: g.name, title: g.title, hue: g.hue, id: g.id }, hues = C.HUES[g.hue % C.HUES.length];
+    const logs = forPrompt(goalLogs(g, stage).slice(-30));
+    ui.lock = true; closeSheet(); window.scrollTo({ top: 0 }); finishTyping();
+    const r = P.molt(S, now(), {}); Store.save();                                     // 状态先落盘；屏幕上还是旧的样子，下面演给人看
+    if (AI.on) AI.text(L().P.shell({ g: { title: info.title }, mile: mileName, logs })).then(text => {
+      const ms = S.goal && S.goal.id === info.id ? S.goal.miles : (S.habitat.find(h => h.id === info.id) || {}).miles; if (ms && ms[stage] && ms[stage].card) { ms[stage].card.text = text.slice(0, 300); Store.save(); }
+    }).catch(e => AI.fail(e));
+    if (!reduce() && $('actor')) {
+      anim('shakey', 1100); Sfx.rumble(); flash('ask', 1100); await sleep(1000);
+      const st = $('pet'), a = $('actor'); if (st && a) { st.classList.add('flash'); const [x, y] = Fx.center(a); Fx.burst(x, y, { kind: 'shard', colors: [hues[1], hues[0], '#fff', hues[2]], count: 28, speed: 380, size: 11 }); Fx.ring(x, y, '#fff'); }
+      Sfx.molt(); Sfx.buzz(40); await sleep(220);
+    } else Sfx.molt();
+    ui.thread = []; ui.from = 0; ui.shown = 0; ui.step = 'idle'; ui.mood = ''; ui.lock = false;
+    const part = r.part ? L().parts[r.part] : null;
+    if (r.done) {
+      const a = S.habitat[S.habitat.length - 1]; ui.draft = null; ui.greetedFor = ''; render(); Fx.confetti(); Sfx.grown();
+      openSheet('<h2>' + t('grownTitle', { name: esc(info.name) }) + '</h2>' + certHTML(a) + '<p class="note">' + t('grownBody') + '</p><button type="button" class="btn primary cta" data-act="goHome">' + t('grownGo') + '</button><div class="sublinks"><button type="button" class="linkbtn" data-act="close">' + t('grownNew') + '</button></div>');
+    } else {
+      ui.woke = true; ui.greetedFor = info.id; ui.freshPart = r.part || ''; push('pet', say('afterMolt')); render();
+      setTimeout(() => { anim('jump', 760); const a = $('actor'); if (a) { const [x, y] = Fx.center(a); Fx.burst(x, y, { kind: 'star', count: 16, up: true, speed: 360, spread: 2.8 }); } Sfx.sparkle(); }, reduce() ? 0 : 700);
+      await sleep(reduce() ? 0 : 1700); if (!S.goal || S.goal.id !== info.id || sheetOpen()) return;
+      openSheet('<p class="eyebrow">' + t('mlPassed', { i: stage + 1 }) + '</p><h2>' + t('mlGot', { name: esc(info.name), part: part ? part[0] : '' }) + '</h2>' + stageBox(P.lookOf(S.goal), r.part === 'eyes' ? 'ask' : 'happy', { cls: 'wide', fresh: r.part }) + '<p>' + (part ? part[1] : '') + '</p><button type="button" class="btn primary cta" data-act="close">' + t('ok') + '</button>');
+    }
+  }
+  function sheetTreasure() {
+    const g = S.goal, total = C.ITEMS.length; let h = '';
+    for (let i = 0; i < total; i++) h += i < g.trinkets ? '<div class="slot' + (i >= g.trinkets - ui.newItems ? ' new' : '') + '">' + C.glyph(itemId(g, i), 36) + '<span>' + esc(itemName(itemId(g, i))) + '</span></div>' : '<div class="slot none">?</div>';
+    openSheet('<div style="display:flex;justify-content:space-between;align-items:baseline"><h2>' + t('trTitle') + '</h2><span class="note num">' + t('trCount', { a: Math.min(g.trinkets, total), b: total }) + '</span></div><p class="note">' + t('trLead') + '</p><div class="grid4">' + h + '</div><div class="sublinks"><button type="button" class="linkbtn" data-act="close">' + t('close') + '</button></div>');
+    ui.newItems = 0;
+  }
+  function sheetBuddy(i) { const a = S.habitat[i]; if (!a) return; openSheet(certHTML(a) + (a.miles.some(m => m.doneAt) ? '<div class="lab">' + t('certShells') + '</div>' + trailHTML(a.miles, a.result === 'grown' ? a.miles.length : a.look.stage, null, a.look.hue) : '') + '<div class="sublinks"><button type="button" class="linkbtn" data-act="close">' + t('close') + '</button></div>'); }
+  function sheetRelease() {
+    const g = S.goal;
+    openSheet('<h2>' + t('rlTitle', { name: esc(g.name) }) + '</h2><p>' + t('rlLead') + '</p><div class="field"><label for="rl-reason" style="font:inherit;font-size:.9rem">' + t('rlReason') + '</label><input type="text" id="rl-reason" maxlength="100"></div>' +
+      '<div class="btns"><button type="button" class="btn hot" data-act="releaseGo">' + t('rlGo') + '</button><button type="button" class="btn" data-act="close">' + t('rlKeep') + '</button></div>');
+  }
+  function sheetSettings(confirmReset) {
+    const g = S.goal, sw = (act, onNow) => '<div class="switch">' + [[true, t('setOn')], [false, t('setOff')]].map(o => '<button type="button" data-act="' + act + '" data-x="' + (o[0] ? 1 : 0) + '" aria-pressed="' + (onNow === o[0]) + '">' + o[1] + '</button>').join('') + '</div>';
+    openSheet('<h2>' + t('setTitle') + '</h2>' +
+      '<section style="grid-template-columns:1fr auto;align-items:center"><div class="lab">' + t('setSound') + '</div>' + sw('setSound', !S.mute) + '</section>' +
+      (g ? '<section><div class="lab">' + t('setVoice') + '</div><div class="chips">' + Object.keys(L().styles).map(k => '<button type="button" class="chip" data-act="setStyle" data-x="' + k + '" aria-pressed="' + (g.style === k) + '">' + L().styles[k] + '</button>').join('') + '</div></section>' : '') +
+      (g ? '<section><div class="lab">' + t('setTime') + '</div><p class="note">' + t('setTimeHint') + '</p><div class="btns">' + [1, 3, 7, 14].map(d => '<button type="button" class="btn small" data-act="skip" data-d="' + d + '">' + t('setTimeBtn', { d }) + '</button>').join('') + '</div></section>' : '') +
+      '<section><div class="lab">' + t('setAbout') + '</div><p class="note">' + t(Store.kind === 'cloud' ? 'setSaveCloud' : Store.kind === 'local' ? 'setSaveLocal' : 'setSaveNone') + ' ' + t(AI.on ? 'setAIOn' : 'setAIOff') + '</p>' +
+      '<div class="btns"><button type="button" class="btn small" data-act="export" id="btn-export">' + t('setExport') + '</button>' + (confirmReset ? '<button type="button" class="btn small hot" data-act="resetGo">' + t('setResetGo') + '</button>' : '<button type="button" class="btn small" data-act="reset">' + t('setReset') + '</button>') + '</div>' +
+      (confirmReset ? '<p class="err">' + t('setResetLead') + '</p>' : '') + '<input type="text" id="export-box" readonly hidden aria-label="' + esc(t('setExport')) + '"></section>' +
+      '<div class="sublinks"><button type="button" class="linkbtn" data-act="close">' + t('close') + '</button></div>');
+  }
+
+  /* ---------- 日记、栖地 ---------- */
+  const backLink = () => '<div><a class="linkbtn" href="#pet" style="padding-left:0">' + t('back') + '</a></div>';
+  function viewDiary() {
+    const goals = []; if (S.goal) goals.push({ id: S.goal.id, title: S.goal.title, miles: S.goal.miles, name: S.goal.name });
+    for (const a of S.habitat.slice().reverse()) goals.push({ id: a.id, title: a.title, miles: a.miles, name: a.look.name });
+    let h = '<div class="page">' + backLink() + '<h1>' + t('dyTitle') + '</h1>', any = false;
+    for (const g of goals) {
+      const logs = S.logs.filter(l => l.goalId === g.id); if (!logs.length) continue; any = true;
+      h += '<section><h2>' + esc(g.name) + ' · ' + esc(g.title) + '</h2>';
+      for (let i = g.miles.length - 1; i >= 0; i--) {
+        const ls = logs.filter(l => l.stage === i).reverse(), m = g.miles[i]; if (!ls.length && !m.card) continue;
+        h += '<h3 class="stagehead">' + t('dyStage', { i: i + 1, name: esc(m.name) }) + '</h3>';
+        if (m.card) h += '<div class="shellcard"><div class="k">' + t('dyShell', { date: L().date(m.doneAt) }) + (m.card.part ? ' · ' + t('mlGot', { name: esc(g.name), part: L().parts[m.card.part][0] }) : '') + '</div>' + (m.card.text ? '<p>' + esc(m.card.text) + '</p>' : '') + '</div>';
+        for (const l of ls) h += '<div class="log"><div class="when">' + L().date(l.at) + '</div><div class="tx">' + esc(l.text) + '</div>' + (l.a ? '<div class="qa"><div class="qq">' + esc(g.name) + '：' + esc(l.q) + '</div><div>' + esc(l.a) + '</div></div>' : '') + (l.next ? '<div class="nx">' + t('dyNext') + esc(l.next) + '</div>' : '') + '</div>';
+      }
+      h += '</section>';
+    }
+    return h + (any ? '' : '<p class="note">' + t('dyEmpty') + '</p>') + '</div>';
+  }
+  function viewHome() {
+    const cards = [];
+    if (S.goal) cards.push({ look: P.lookOf(S.goal), title: S.goal.title, tag: 'now', label: t('hmNow'), mood: P.isAwake(S.goal, now()) ? 'awake' : 'sleep', line: '', act: 'goPet', i: -1 });
+    for (let i = S.habitat.length - 1; i >= 0; i--) { const a = S.habitat[i]; cards.push({ look: a.look, title: a.title, tag: a.result, label: t(a.result === 'grown' ? 'hmGrown' : 'hmReleased'), mood: a.result === 'grown' ? 'happy' : 'awake', line: t('hmLine', { from: L().date(a.createdAt), to: L().date(a.endedAt), adv: a.adv }), act: 'buddy', i }); }
+    return '<div class="page">' + backLink() + '<h1>' + t('hmTitle') + '</h1><div><div class="bondbig num">' + t('hmBond', { n: S.bond }) + '</div><p class="note">' + t('hmLead') + '</p></div><div class="homes">' +
+      cards.map(c => '<button type="button" class="home" data-act="' + c.act + '" data-i="' + c.i + '">' + stageBox(c.look, c.mood, { cls: 'mini', phase: c.tag === 'now' ? phase() : 'day' }) + '<div class="nm">' + esc(c.look.name) + '</div><div class="d"><span class="tag ' + c.tag + '">' + c.label + '</span>' + esc(c.title) + '</div>' + (c.line ? '<div class="d">' + c.line + '</div>' : '') + '</button>').join('') + '</div></div>';
+  }
+
+  /* ---------- 动作 ---------- */
+  const acts = {
+    close() { closeSheet(); }, settings() { sheetSettings(false); }, goHome() { closeSheet(); location.hash = 'home'; }, goPet() { location.hash = 'pet'; },
+    obEx(el) { const d = ui.draft; d.title = el.dataset.x; d.kind = guessKind(d.title); $('ob-title').value = d.title; $('egg').innerHTML = C.egg(d.hue, d.kind, 0); $('ob-title').focus(); },
+    obBack() { const d = ui.draft; d.step = 1; d.miles = null; d.err = ''; d.edit = false; render(); },
+    obEdit() { const d = ui.draft; d.edit = !d.edit; if (!d.edit) d.miles = d.miles.filter(m => m.name.trim()); if (d.miles.length < 2) { d.edit = true; } render(); },
+    obAddMile() { ui.draft.miles.push({ name: '', doneWhen: '' }); render(); $('ob-m' + (ui.draft.miles.length - 1)).focus(); },
+    obDelMile(el) { ui.draft.miles.splice(+el.dataset.i, 1); render(); },
+    crack() { actCrack(); },
+    obStyle(el) { const d = ui.draft; d.style = el.dataset.x; for (const c of document.querySelectorAll('[data-act="obStyle"]')) c.setAttribute('aria-pressed', String(c.dataset.x === d.style)); sampleSay(d); },
+    obReroll() { const d = ui.draft; d.name = pick(L().names.filter(n => n !== d.name)); $('ob-name').value = d.name; },
+    poke() { actPoke(); },
+    wake() { ui.woke = true; ui.justWoke = true; ui.greetedFor = ''; Sfx.wake(); render(); anim('jump', 760); },
+    report() { fresh(); ui.step = 'report'; push('pet', say('askReport')); renderTalk('rp-text'); },
+    cancelTalk() { ui.step = 'idle'; renderTalk(); },
+    skipAnswer() { toPromise(); },
+    pickSuggest() { finishPromise(ui.suggest, true); },
+    keepPromise() { finishPromise(S.goal.promise.text, true); },
+    skipPromise() { const keep = ui.thread.length; push('pet', say('noPromise')); ui.step = 'idle'; ui.promiseLog = null; ui.from = keep; ui.shown = keep; renderTalk(); window.scrollTo({ top: 0, behavior: 'smooth' }); },
+    editPromise() { if (ui.busy) return; ui.step = 'editPromise'; renderTalk('pm-text'); },
+    pickPromise(el) { const m = ui.thread[+el.dataset.i]; if (m) m.acts = null; finishPromise(el.dataset.x, false); },
+    stuck() { if (!ui.busy) actStuck(); },
+    chat() { fresh(); ui.step = 'chat'; renderTalk('ch-text'); },
+    welcomeAI(el) { actWelcomeAI(el); },
+    route() { sheetRoute(); }, moltGo() { actMoltGo(); }, treasure() { sheetTreasure(); }, buddy(el) { sheetBuddy(+el.dataset.i); },
+    release() { sheetRelease(); },
+    releaseGo() { const name = S.goal.name; P.release(S, now(), $('rl-reason').value.trim()); Store.save(); closeSheet(); ui.thread = []; ui.from = 0; ui.step = 'idle'; ui.draft = null; ui.greetedFor = ''; Sfx.sleep(); render(); toast(t('rlToast', { name })); },
+    setStyle(el) { S.goal.style = el.dataset.x; Store.save(); for (const c of document.querySelectorAll('[data-act="setStyle"]')) c.setAttribute('aria-pressed', String(c.dataset.x === S.goal.style)); Sfx.blip(voiceOf(S.goal), S.goal.style); },
+    setSound(el) { S.mute = el.dataset.x !== '1'; Sfx.on = !S.mute; Store.save(); for (const c of document.querySelectorAll('[data-act="setSound"]')) c.setAttribute('aria-pressed', String((c.dataset.x === '1') === !S.mute)); if (!S.mute) Sfx.sparkle(); },
+    skip(el) { S.offset = (S.offset || 0) + (+el.dataset.d) * DAY; Store.save(); closeSheet(); ui.thread = []; ui.from = 0; ui.step = 'idle'; ui.busy = false; ui.woke = false; ui.mood = ''; ui.greetedFor = ''; ui.newItems = 0; ui.chat = []; ui.chatN = 0; if (route() !== 'pet') location.hash = 'pet'; else render(); window.scrollTo({ top: 0 }); },
+    async export() { const txt = JSON.stringify(S); try { await navigator.clipboard.writeText(txt); $('btn-export').textContent = t('setCopied'); } catch (e) { const b = $('export-box'); b.hidden = false; b.value = txt; b.focus(); b.select(); } },
+    reset() { sheetSettings(true); },
+    resetGo() { S = P.create(); ui.draft = null; ui.thread = []; ui.from = 0; ui.step = 'idle'; ui.busy = false; ui.greetedFor = ''; ui.woke = false; Store.save(); closeSheet(); location.hash = 'pet'; render(); },
+  };
+
+  document.addEventListener('pointerdown', () => Sfx.unlock(), { passive: true });
+  document.addEventListener('keydown', () => Sfx.unlock());
+  document.addEventListener('click', ev => {
+    const el = ev.target.closest('[data-act]');
+    if (el) { if (el.disabled) return; if (el.matches('.btn, .chip, .row, .navlink, .linkbtn, .switch button')) Sfx.tap(); const f = acts[el.dataset.act]; if (f) f(el, ev); return; }
+    if (ev.target.id === 'sheet') closeSheet(); else if (typing.length && ev.target.closest('#thread')) finishTyping();
+  });
+  document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && sheetOpen()) closeSheet(); });
+  document.addEventListener('input', ev => {
+    const el = ev.target, d = ui.draft; if (!d) return;
+    if (el.dataset.bind) { d[el.dataset.bind] = el.value; if (el.dataset.bind === 'title') { const k = guessKind(el.value); if (k !== d.kind) { d.kind = k; $('egg').innerHTML = C.egg(d.hue, d.kind, 0); } } }
+    else if (d.miles && el.dataset.mf) d.miles[+el.dataset.mi][el.dataset.mf] = el.value;
+  });
+  document.addEventListener('submit', ev => {
+    ev.preventDefault(); const id = ev.target.id, s = ui.step; if (ui.busy || ui.lock) return;
+    if (id === 'f-ob1') ob1Submit(); else if (id === 'f-ob2') ob2Submit(); else if (id === 'f-ob3') ob3Submit();
+    else if (id === 'f-talk') { if (s === 'report') submitReport(); else if (s === 'answer') submitAnswer(); else if (s === 'promise' || s === 'editPromise') submitPromise(); else if (s === 'chat') submitChat(); }
+  });
+  window.addEventListener('hashchange', () => { closeSheet(); render(); window.scrollTo({ top: 0 }); });
+
+  /* ---------- 启动 ---------- */
+  function adopt(o) { S = Object.assign(P.create(), o); S.logs = S.logs || []; S.habitat = S.habitat || []; S.tips = S.tips || {}; Sfx.on = !S.mute; }
+  const local = Store.loadLocal(); if (local && local.v === 2) { adopt(local); Store.kind = 'local'; }
+  else { try { localStorage.setItem(KEY + '.t', '1'); localStorage.removeItem(KEY + '.t'); Store.kind = 'local'; } catch (e) { Store.kind = 'none'; } }
+  ui.looking = !local && !!(window.claude && window.claude.use);
+  render();
+  if (ui.looking) setTimeout(() => { if (ui.looking) { ui.looking = false; if (!S.goal && !sheetOpen()) render(); } }, 4000);
+  Store.connect().then(remote => {
+    const was = ui.looking; ui.looking = false;
+    if (remote && remote.v === 2 && (remote.savedAt || 0) > (S.savedAt || 0)) { adopt(remote); Store.saveLocal(); ui.draft = null; ui.thread = []; ui.from = 0; ui.step = 'idle'; ui.greetedFor = ''; closeSheet(); render(); }
+    else { if (Store.ref && S.rev > 0) { Store.pending = true; Store.flush(); } if (was && !S.goal) render(); }
+  });
+  AI.init();
+  setInterval(tickLive, 1000);
+  window.__app = { get S() { return S; }, AI, Store, render, ui };   // 调试用
+})();
+
+</script>
+</body>
+</html>
