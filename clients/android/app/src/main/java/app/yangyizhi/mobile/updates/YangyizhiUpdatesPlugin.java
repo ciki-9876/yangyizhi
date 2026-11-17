@@ -175,7 +175,7 @@ public class YangyizhiUpdatesPlugin extends Plugin {
                 Intent intent = new Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
                     .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
                 getContext().startActivity(intent);
-                call.resolve(new JSONObject().put("ok", true).put("version", item.getString("version")));
+                call.resolve(new JSObject().put("ok", true).put("version", item.getString("version")));
             } catch (Exception error) { call.reject(error.getMessage() == null ? "下载或安装更新失败" : error.getMessage()); }
         });
     }
