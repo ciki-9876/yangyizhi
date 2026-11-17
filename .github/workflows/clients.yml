@@ -73,7 +73,10 @@ jobs:
       - uses: actions/upload-artifact@v6
         with:
           name: yangyizhi-windows-${{ github.sha }}
-          path: artifacts/desktop/*
+          path: |
+            artifacts/desktop/*windows*x64*setup.exe
+            artifacts/desktop/*windows*x64*.zip
+            artifacts/desktop/SHA256SUMS.windows.txt
           retention-days: 5
 
   android:
@@ -184,7 +187,10 @@ jobs:
       - uses: actions/upload-artifact@v6
         with:
           name: yangyizhi-macos-${{ github.sha }}
-          path: artifacts/desktop/*
+          path: |
+            artifacts/desktop/*.dmg
+            artifacts/desktop/*.zip
+            artifacts/desktop/SHA256SUMS.macos-arm64
           retention-days: 5
 
   macos-x64:
@@ -209,5 +215,8 @@ jobs:
       - uses: actions/upload-artifact@v6
         with:
           name: yangyizhi-macos-x64-${{ github.sha }}
-          path: artifacts/desktop/*
+          path: |
+            artifacts/desktop/*.dmg
+            artifacts/desktop/*.zip
+            artifacts/desktop/SHA256SUMS.macos-x64
           retention-days: 5
