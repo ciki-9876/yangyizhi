@@ -4,6 +4,8 @@
 
 `clients/versions.json` 是单一版本源。界面版本 `web` 与 Windows、Android、macOS 原生版本独立推进；Android 另用单调递增的 `versionCode`。Web 构建写出 `dist/version.json`，Android Gradle 和 Electron 从同一文件取对应客户端版本。更新协议 `updateProtocol` 只在客户端和服务端协议不兼容时递增。
 
+Android CI 只安装构建所需的 API 36 平台和 Build Tools 36，并使用仓库中已人工接受的 `android-sdk-license` 标记；不接受与产品无关的 TV / XR 等 SDK 附加许可。新增或更新 SDK 许可时，先由项目负责人在 Android SDK Manager 审阅并接受，再更新对应的许可标记。
+
 ## 当前构建
 
 ```sh

@@ -94,8 +94,17 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - uses: android-actions/setup-android@v3
-      - run: sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
+      - uses: android-actions/setup-android@v4
+        with:
+          # The accepted android-sdk-license marker is stored in the repository.
+          # Do not accept every license offered by sdkmanager (for example TV/XR add-ons).
+          accept-android-sdk-licenses: false
+          packages: ''
+      - name: Install required Android SDK packages
+        run: |
+          mkdir -p "$ANDROID_HOME/licenses"
+          install -m 644 clients/android/licenses/android-sdk-license "$ANDROID_HOME/licenses/android-sdk-license"
+          sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
       - run: npm ci
       - run: npm run android:sync
       - name: Prepare stable release signing (only when repository Secrets are configured)
