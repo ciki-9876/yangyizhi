@@ -59,6 +59,12 @@ python3 e2e.py --reduce     # 减少动效
 node ../src/sim.js          # 规则模拟
 ```
 
+## 多端构建、更新与腾讯云发布
+
+项目保持原生 JavaScript + Python 构建。Web、Windows/macOS 桌面包与 Android 包使用独立客户端版本，来源见 `clients/versions.json`。构建与更新方案、签名要求、腾讯云隔离部署和回滚流程见 [多端更新说明](clients/UPDATES.md)、[更新清单协议](updates/README.md) 和 [腾讯云部署说明](deploy/README.md)。
+
+当前没有账号云同步或数据库；网站部署不创建数据库。多端 Actions 构建由 `.github/workflows/clients.yml` 负责，5 天 Actions artifact 只用于 CI 中转。签名正式包与更新清单后，通过独立的云发布脚本传至新站点。
+
 ## 四条红线
 
 写进了每次调用模型的人设提示词：它不受苦；它不黏人；它说实话；它不占时间。详见 `docs/design-notes.md`。

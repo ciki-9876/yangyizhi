@@ -1,0 +1,6 @@
+{
+  "protocol": 1,
+  "manifestUrl": "https://app.example.invalid/updates/stable.json",
+  "publicKey": "REPLACE_DURING_KEY_INITIALIZATION",
+  "applicationId": "app.yangyizhi.mobile"
+}

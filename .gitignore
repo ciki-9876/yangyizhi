@@ -1,3 +1,16 @@
 tests/shots/
 __pycache__/
 .DS_Store
+node_modules/
+clients/**/node_modules/
+artifacts/
+coverage/
+.env
+.env.*
+!*.env.example
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+!clients/update-public-key.pem

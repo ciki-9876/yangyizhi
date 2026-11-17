@@ -1,0 +1,24 @@
+{
+  "name": "yangyizhi",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:web": "python3 src/build.py",
+    "check:versions": "node scripts/check-versions.mjs",
+    "test": "node --test tests/release.test.mjs tests/desktop-updates.test.cjs",
+    "android:sync": "npm run build:web && cap sync android",
+    "release:manifest": "node scripts/release-manifest.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/core": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.0.0",
+    "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

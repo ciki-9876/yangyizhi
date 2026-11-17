@@ -1,0 +1,30 @@
+yangyizhi.example.com {
+	encode zstd gzip
+	log {
+		output file /var/log/caddy/yangyizhi-access.log {
+			roll_size 20MiB
+			roll_keep 5
+			roll_keep_for 168h
+		}
+	}
+	@webEntry path / /index.html /version.json
+	header @webEntry Cache-Control "no-cache, must-revalidate"
+	@manifest path /updates/stable.json
+	header @manifest Cache-Control "no-store, no-cache, must-revalidate"
+	@immutable path_regexp immutable ^/updates/[a-f0-9]{64}/.*$
+	header @immutable Cache-Control "public, max-age=31536000, immutable"
+	@health path /healthz
+	handle @health {
+		root * /opt/yangyizhi/current/site
+		file_server
+	}
+	handle /updates/* {
+		root * /opt/yangyizhi/current
+		file_server
+	}
+	handle {
+		root * /opt/yangyizhi/current/site
+		try_files {path} {path}/ /index.html
+		file_server
+	}
+}

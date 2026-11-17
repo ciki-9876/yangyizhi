@@ -6,6 +6,7 @@
 (function () {
   'use strict';
   const P = window.Pet, C = window.Critter, Sfx = window.Sfx, Fx = window.Fx, DAY = P.DAY, KEY = 'yangyizhi.save.v2';
+  const nativeUpdateBridge = window.Capacitor?.registerPlugin ? window.Capacitor.registerPlugin('YangyizhiUpdates') : window.Capacitor?.Plugins?.YangyizhiUpdates;
   let S = P.create();
   const ui = { looking: false, draft: null, thread: [], from: 0, shown: 0, step: 'idle', busy: false, lastLog: null, promiseLog: null, askQ: '', suggest: '', woke: false, justWoke: false, mood: '', moodT: 0, chat: [], chatN: 0, greetedFor: '', newItems: 0, dropN: 0, freshPart: '', pokes: [], lock: false };
   const $ = id => document.getElementById(id);
@@ -467,10 +468,12 @@
   }
   function sheetSettings(confirmReset) {
     const g = S.goal, sw = (act, onNow) => '<div class="switch">' + [[true, t('setOn')], [false, t('setOff')]].map(o => '<button type="button" data-act="' + act + '" data-x="' + (o[0] ? 1 : 0) + '" aria-pressed="' + (onNow === o[0]) + '">' + o[1] + '</button>').join('') + '</div>';
+    const updateBridge = window.YangyizhiDesktop || nativeUpdateBridge;
     openSheet('<h2>' + t('setTitle') + '</h2>' +
       '<section style="grid-template-columns:1fr auto;align-items:center"><div class="lab">' + t('setSound') + '</div>' + sw('setSound', !S.mute) + '</section>' +
       (g ? '<section><div class="lab">' + t('setVoice') + '</div><div class="chips">' + Object.keys(L().styles).map(k => '<button type="button" class="chip" data-act="setStyle" data-x="' + k + '" aria-pressed="' + (g.style === k) + '">' + L().styles[k] + '</button>').join('') + '</div></section>' : '') +
       (g ? '<section><div class="lab">' + t('setTime') + '</div><p class="note">' + t('setTimeHint') + '</p><div class="btns">' + [1, 3, 7, 14].map(d => '<button type="button" class="btn small" data-act="skip" data-d="' + d + '">' + t('setTimeBtn', { d }) + '</button>').join('') + '</div></section>' : '') +
+      (updateBridge ? '<section><div class="lab">软件更新</div><p class="note">检查当前客户端版本和兼容的更新。</p><button type="button" class="btn small" data-act="updateCheck">检查更新</button></section>' : '') +
       '<section><div class="lab">' + t('setAbout') + '</div><p class="note">' + t(Store.kind === 'cloud' ? 'setSaveCloud' : Store.kind === 'local' ? 'setSaveLocal' : 'setSaveNone') + ' ' + t(AI.on ? 'setAIOn' : 'setAIOff') + '</p>' +
       '<div class="btns"><button type="button" class="btn small" data-act="export" id="btn-export">' + t('setExport') + '</button>' + (confirmReset ? '<button type="button" class="btn small hot" data-act="resetGo">' + t('setResetGo') + '</button>' : '<button type="button" class="btn small" data-act="reset">' + t('setReset') + '</button>') + '</div>' +
       (confirmReset ? '<p class="err">' + t('setResetLead') + '</p>' : '') + '<input type="text" id="export-box" readonly hidden aria-label="' + esc(t('setExport')) + '"></section>' +
@@ -507,6 +510,46 @@
   /* ---------- 动作 ---------- */
   const acts = {
     close() { closeSheet(); }, settings() { sheetSettings(false); }, goHome() { closeSheet(); location.hash = 'home'; }, goPet() { location.hash = 'pet'; },
+    async updateCheck() {
+      const bridge = window.YangyizhiDesktop || nativeUpdateBridge;
+      if (!bridge) return;
+      openSheet('<h2>软件更新</h2><p class="note">正在检查更新…</p>');
+      try {
+        const result = window.YangyizhiDesktop ? await bridge.checkUpdate() : await bridge.checkForUpdate();
+        if (!result.available) {
+          openSheet('<h2>软件更新</h2><p class="note">当前版本：' + esc(result.currentVersion || '未知') + '。' + esc(result.message || '已是最新版本') + '</p><div class="sublinks"><button type="button" class="linkbtn" data-act="close">关闭</button></div>');
+          return;
+        }
+        openSheet('<h2>发现新版本</h2><p class="note">当前版本：' + esc(result.currentVersion || '未知') + '</p><p>可用版本：' + esc(result.version) + '</p><p class="note">最低兼容版本：' + esc(result.minimumCompatible) + '</p><p>' + esc(result.releaseNotes) + '</p><button type="button" class="btn primary cta" data-act="updateInstall">下载并安装更新</button><div class="sublinks"><button type="button" class="linkbtn" data-act="close">稍后</button></div>');
+      } catch (error) {
+        openSheet('<h2>暂时无法检查更新</h2><p class="err">' + esc(error.message || '检查失败，请检查网络后重试。') + '</p><div class="btns"><button type="button" class="btn small" data-act="updateCheck">重试</button><button type="button" class="btn small" data-act="close">关闭</button></div>');
+      }
+    },
+    async updateInstall() {
+      const bridge = window.YangyizhiDesktop || nativeUpdateBridge;
+      if (!bridge) return;
+      try {
+        const result = window.YangyizhiDesktop ? await bridge.downloadUpdate() : await bridge.installUpdate();
+        if (result.canceled) return;
+        if (result.permissionRequired) {
+          openSheet('<h2>需要允许安装更新</h2><p class="note">请在 Android 设置中允许“养一只”安装此来源的应用，返回后再次点击安装。已下载的文件已通过完整性与签名校验。</p><div class="sublinks"><button type="button" class="linkbtn" data-act="close">关闭</button></div>');
+          return;
+        }
+        openSheet('<h2>更新文件已校验</h2><p class="note">文件大小与 SHA-256 校验通过。' + (result.path ? '打开保存的安装包后继续安装。' : '请按 Android 系统安装提示继续。') + '</p>' + (result.path ? '<button type="button" class="btn primary cta" data-act="updateOpen">打开更新文件</button>' : '') + '<div class="sublinks"><button type="button" class="linkbtn" data-act="close">关闭</button></div>');
+      } catch (error) {
+        openSheet('<h2>更新未安装</h2><p class="err">' + esc(error.message || '下载或校验失败，当前版本未更改。') + '</p><div class="btns"><button type="button" class="btn small" data-act="updateCheck">重试</button><button type="button" class="btn small" data-act="close">关闭</button></div>');
+      }
+    },
+    async updateOpen() {
+      const bridge = window.YangyizhiDesktop;
+      if (!bridge) return;
+      try {
+        await bridge.openUpdate();
+        openSheet('<h2>已打开更新文件</h2><p class="note">Windows：按安装程序提示更新。macOS：解压 ZIP，将新应用复制到 Applications；如替换失败，保留旧版并恢复旧应用副本。</p><div class="sublinks"><button type="button" class="linkbtn" data-act="close">关闭</button></div>');
+      } catch (error) {
+        openSheet('<h2>无法打开更新文件</h2><p class="err">' + esc(error.message || '文件校验失败。') + '</p><div class="sublinks"><button type="button" class="linkbtn" data-act="close">关闭</button></div>');
+      }
+    },
     obEx(el) { const d = ui.draft; d.title = el.dataset.x; d.kind = guessKind(d.title); $('ob-title').value = d.title; $('egg').innerHTML = C.egg(d.hue, d.kind, 0); $('ob-title').focus(); },
     obBack() { const d = ui.draft; d.step = 1; d.miles = null; d.err = ''; d.edit = false; render(); },
     obEdit() { const d = ui.draft; d.edit = !d.edit; if (!d.edit) d.miles = d.miles.filter(m => m.name.trim()); if (d.miles.length < 2) { d.edit = true; } render(); },
