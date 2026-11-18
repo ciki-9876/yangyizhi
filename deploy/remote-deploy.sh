@@ -15,7 +15,12 @@ flock -n 9 || { echo 'A Yangyizhi deployment is already running.' >&2; exit 1; }
 mkdir -p "$releases" "$base/backups"
 [[ ! -L $releases && ! -L $base/backups ]] || { echo 'Release or backup directory must not be a symlink.' >&2; exit 1; }
 chmod 0755 "$base" "$releases" "$base/backups"
-previous=$(readlink -f "$base/current" 2>/dev/null || true)
+if [[ -L $base/current ]]; then
+  previous=$(readlink -f "$base/current" 2>/dev/null || true)
+else
+  [[ ! -e $base/current ]] || { echo 'Current release pointer exists but is not a symlink.' >&2; exit 1; }
+  previous=
+fi
 [[ -z $previous || $previous == "$releases/"* && -d $previous ]] || { echo 'Current release points outside the isolated Yangyizhi directory.' >&2; exit 1; }
 mkdir -m 0755 "$release"
 python3 - "$archive" "$release" <<'PY'

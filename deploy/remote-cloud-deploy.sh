@@ -14,7 +14,12 @@ flock -n 9 || { echo 'A Yangyizhi deployment is already running.' >&2; exit 1; }
 mkdir -p "$releases" "$base/backups" /var/backups/yangyizhi
 [[ ! -L $releases && ! -L $base/backups && ! -L /var/backups/yangyizhi ]] || { echo 'Release and backup directories must not be symlinks.' >&2; exit 1; }
 chmod 0755 "$base" "$releases" "$base/backups"
-previous=$(readlink -f "$base/current" 2>/dev/null || true)
+if [[ -L $base/current ]]; then
+  previous=$(readlink -f "$base/current" 2>/dev/null || true)
+else
+  [[ ! -e $base/current ]] || { echo 'Current release pointer exists but is not a symlink.' >&2; exit 1; }
+  previous=
+fi
 [[ -z $previous || $previous == "$releases/"* && -d $previous ]] || { echo 'Current release points outside isolated Yangyizhi directory.' >&2; exit 1; }
 if [[ -s /var/lib/yangyizhi/workspace.json ]]; then
   [[ -n $previous && -s /etc/yangyizhi-backup.key ]] || { echo 'Data exists but encrypted backup key or current backup script is missing; refusing deployment.' >&2; exit 1; }
