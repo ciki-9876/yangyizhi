@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
-import { chmod, mkdir, open, readFile, readdir, rename, stat, unlink } from 'node:fs/promises';
+import { chmod, mkdir, open, readFile, readdir, realpath, rename, stat, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -74,7 +74,8 @@ export async function restoreBackup({ restore, to, keyFile }) {
   return { output: to, bytes: plain.length };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+const invokedPath = process.argv[1] ? await realpath(process.argv[1]).catch(() => '') : '';
+if (invokedPath && invokedPath === fileURLToPath(import.meta.url)) {
   const args = argsOf(process.argv.slice(2)); const keyFile = args['key-file'];
   if (!keyFile) throw new Error('Missing --key-file.');
   if (args.restore && args.to) {
