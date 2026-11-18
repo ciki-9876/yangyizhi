@@ -309,7 +309,8 @@ export function createServer(options = {}) {
   return server;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+const invokedPath = process.argv[1] ? await realpath(process.argv[1]).catch(() => '') : '';
+if (invokedPath && invokedPath === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT || 52171); const host = process.env.HOST || '127.0.0.1';
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid PORT');
   const server = createServer(); server.listen(port, host, () => console.log(`养一只服务已启动：http://${host}:${port}`));
