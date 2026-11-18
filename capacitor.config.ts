@@ -16,6 +16,12 @@ const config: CapacitorConfig = {
     webContentsDebuggingEnabled: false,
   },
   loggingBehavior: 'none',
+  plugins: {
+    LocalNotifications: {
+      smallIcon: 'ic_stat_yangyizhi',
+      iconColor: '#FFD23F',
+    },
+  },
 };
 
 export default config;

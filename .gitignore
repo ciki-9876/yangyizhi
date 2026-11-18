@@ -14,3 +14,4 @@ coverage/
 *.pfx
 *.pem
 !clients/update-public-key.pem
+evals/results/

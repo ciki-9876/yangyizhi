@@ -25,28 +25,44 @@ src/
   sfx.js        WebAudio 合成音效
   fx.js         canvas 粒子
   strings.js    中文文案和模型提示词（按语言分表）
+  llm.js        外部大模型接入（OpenAI 兼容 / Anthropic 协议）
+  config.json   随包配置（功能开关、官方模型、上报地址、限额、远程配置地址）
+  agent/        Agent 基建：运行时、记忆、提醒、红线、平台适配、追踪（见 docs/agent-runtime.md）
   app.js        界面与流程；Store / AI 两个适配器
   style.css     样式
   shell.html    页面外壳
   build.py      构建脚本
   sim.js        规则模拟：7 种节奏 × 60 天（node src/sim.js）
+proxy/
+  worker.js     模型网关（藏密钥、补跨域头、限来源和模型、按设备每日额度、备用模型），部署说明见 proxy/README.md
+evals/
+  redline.mjs   红线评测：27 条用例，用真实模型跑
 tests/
   e2e.py        Playwright 端到端（带 window.claude 替身）
+  e2e_llm.py    外部大模型接入的端到端测试
+  e2e_agent.py  Agent 基建端到端（记忆、提醒、红线重试、危机、计时、日历、反馈、导入删除、远程配置）
+  mock_llm.py   假的 OpenAI 兼容 / Anthropic 接口
   art.html      形象预览页
 docs/
-  design-notes.md       设计记录（规则、红线、三版演进、已知缺口）
+  design-notes.md       设计记录（规则、红线、各版演进、已知缺口、剩余任务）
+  agent-infra.md        作为陪伴型 Agent 需要的基建：调研与路线图
+  dev-plan.md           基建开发计划和当前进度
+  agent-runtime.md      Agent 运行时说明（模块、存档字段、远程配置、怎么加提示词）
+  legal/privacy-draft.md  隐私政策草稿（待专业人士审阅）
   liaoyuan-v1-notes.md  前身《燎原》（森林题材）的设计记录
 ```
 
-## 依赖于 Claude artifact 环境的部分
+## 大模型
 
-原型发布在 claude.ai 的 artifact 里，用到三个宿主能力：
+它说的话可以来自三处，按优先级：
 
-- `window.claude`：调用模型（`claude.use("sample")`）
-- 云端存档：`db`，路径 `data/users/<uid>/pet`
-- 用户身份：`user`
+1. **你自己接的大模型**：设置 → 它的脑子 → 接入大模型（第一次孵化前，第一页底下也有入口）。预设了 DeepSeek、通义千问、Kimi、智谱、OpenRouter、Claude API、OpenAI，也可以填任何 OpenAI 兼容接口或自建代理。密钥只存在本机浏览器里，不进存档。
+2. **claude.ai 宿主里的 Claude**：页面作为 claude.ai artifact 打开时，通过 `window.claude` 调用，并把存档存到 Claude 账号。
+3. **预先写好的台词**：都没有时使用，聊天入口隐藏。
 
-在 claude.ai 之外运行时，这些都不存在：存档自动退回浏览器 localStorage（键 `yangyizhi.save.v2`），AI 功能关闭并改用预先写好的台词，聊天入口隐藏。要接别的模型，只需改 `app.js` 里的 `AI` 适配器。
+不少服务商（DeepSeek、OpenAI 等）不允许网页直接调用，测试会提示「连不上」。这时部署 `proxy/` 里的代理，再选「自建代理」。Claude API 和 OpenRouter 可以直连。
+
+存档：在 claude.ai 之外，进度存在浏览器 localStorage（键 `yangyizhi.save.v2`）。
 
 ## 测试
 
@@ -56,6 +72,10 @@ cd tests && mkdir -p shots
 python3 e2e.py              # 带模型替身
 python3 e2e.py --nomock     # 无模型
 python3 e2e.py --reduce     # 减少动效
+python3 mock_llm.py 8765 & python3 mock_llm.py 8766 --nocors &
+python3 e2e_llm.py          # 外部大模型接入
+python3 e2e_agent.py        # Agent 基建
+node ../src/agent/rhythm-sim.js   # 提醒节奏模拟
 node ../src/sim.js          # 规则模拟
 ```
 
@@ -71,4 +91,4 @@ node ../src/sim.js          # 规则模拟
 
 ## 已知缺口
 
-没有推送；长期记忆只是最近几条日记原样发给模型；真实 Claude 对话质量、声音手感、低端手机性能都未验证；没有账号、付费、多只同时养。
+没有账号和云存档；提醒只在安卓 App 里有，真机未验证；真实模型的对话质量还没有评测基线；声音手感、低端手机性能未验证；没有付费、多只同时养。进度见 `docs/dev-plan.md`。

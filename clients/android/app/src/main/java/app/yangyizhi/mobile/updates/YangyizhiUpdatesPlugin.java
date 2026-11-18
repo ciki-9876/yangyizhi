@@ -70,6 +70,7 @@ public class YangyizhiUpdatesPlugin extends Plugin {
     private JSONObject readPayload() throws Exception {
         JSONObject cfg = config();
         String manifestUrl = cfg.getString("manifestUrl");
+        if (manifestUrl.contains(".invalid/") || cfg.optString("publicKey", "").startsWith("REPLACE")) throw new Exception("更新服务还没有配置。当前版本可以正常使用。");
         byte[] envelopeBytes = getHttps(manifestUrl, MAX_MANIFEST);
         JSONObject envelope = new JSONObject(new String(envelopeBytes, StandardCharsets.UTF_8));
         byte[] payloadBytes = Base64.getDecoder().decode(envelope.getString("payload"));

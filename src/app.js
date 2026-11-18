@@ -54,21 +54,15 @@
     },
   };
 
-  /* ---------- 它的脑子：现在走 Claude，换别家只改这一块 ---------- */
-  const AI = {
-    fn: null, off: false,
-    get on() { return !!this.fn && !this.off; },
-    async init() { try { this.fn = (window.claude && window.claude.use) ? (await window.claude.use('sample')) || null : null; } catch (e) { this.fn = null; } this.sync(); },
-    sync() { document.body.classList.toggle('ai-on', this.on); },
-    fail(e) {
-      const c = e && e.code;
-      if (['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed'].includes(c)) { this.off = true; this.sync(); return L().err.off; }
-      if (c === 'cancelled') return '';
-      return L().err[c] || L().err.other;
-    },
-    async text(input, tier) { const r = await this.fn(input, { modelTier: tier || 'default', cache: false }); return String(r.text || '').trim(); },
-    async json(input, tier) { return await this.fn.json(input, { modelTier: tier || 'default', cache: false }); },
-  };
+  /* ---------- Agent 基建（src/agent/）：脑子、记忆、提醒、工具、事件、追踪、配置 ---------- */
+  const { AI, Brain, Memory, Nudge, Tools, Events, Trace, Config, Guard, Platform } = window.Agent;
+  window.Agent.bind({ L: () => L() });
+  window.Agent.bindState({ S: () => S, L: () => L(), now: () => now() });
+  const ev = (type, d) => Events.add(S, type, now(), d);
+  const memText = g => Memory.text(g);
+  const lastLogs = g => forPrompt(goalLogs(g).slice(-5));
+  const dayNow = () => P.dayKey(now(), tz());
+  const minorNight = () => S.agent && S.agent.minor && (hour() >= 22 || hour() < 6);
 
   /* ---------- 小工具 ---------- */
   let toastT = 0;
@@ -143,7 +137,7 @@
   }
 
   /* ---------- 对话 ---------- */
-  const push = (kind, text, acts) => { ui.thread.push({ t: kind, text, acts: acts || null }); };
+  const push = (kind, text, acts, tr) => { ui.thread.push({ t: kind, text, acts: acts || null, tr: tr || '' }); };
   function fresh() { ui.from = ui.thread.length; }                                   // 新的一轮对话：屏幕上只留这一轮
   function announceFound() {
     const g = S.goal; if (!g || !g.unseen) return;
@@ -197,7 +191,8 @@
       '<div class="field"><label for="ob-title">' + t('ob1Q') + '</label><input type="text" id="ob-title" data-bind="title" maxlength="60" autocomplete="off" placeholder="' + esc(t('ob1Ph')) + '" value="' + esc(d.title) + '">' +
       '<div class="chips">' + L().ob1Ex.map(x => '<button type="button" class="chip" data-act="obEx" data-x="' + esc(x) + '">' + esc(x) + '</button>').join('') + '</div></div>' +
       (d.err ? '<p class="err">' + esc(d.err) + '</p>' : '') +
-      '<button type="submit" class="btn primary cta"' + (d.busy ? ' disabled' : '') + '>' + t(d.busy ? 'ob1Busy' : 'ob1Next') + '</button></form>';
+      '<button type="submit" class="btn primary cta"' + (d.busy ? ' disabled' : '') + '>' + t(d.busy ? 'ob1Busy' : 'ob1Next') + '</button>' +
+      (AI.on ? '' : '<div class="sublinks"><button type="button" class="linkbtn" data-act="llm">' + t('obLLM') + '</button></div>') + '</form>';
     if (d.step === 2) {
       const rows = d.miles.map((m, i) => d.edit
         ? '<div class="level"><span class="i num">' + (i + 1) + '</span><div class="two"><input type="text" id="ob-m' + i + '" data-mi="' + i + '" data-mf="name" maxlength="20" aria-label="' + esc(t('ob2MileName')) + '" placeholder="' + esc(t('ob2MileName')) + '" value="' + esc(m.name) + '"><input type="text" id="ob-w' + i + '" data-mi="' + i + '" data-mf="doneWhen" maxlength="50" aria-label="' + esc(t('ob2MileWhen')) + '" placeholder="' + esc(t('ob2MileWhen')) + '" value="' + esc(m.doneWhen) + '"></div>' + (d.miles.length > 2 ? '<button type="button" class="linkbtn" data-act="obDelMile" data-i="' + i + '">' + t('ob2Del') + '</button>' : '<span></span>') + '</div>'
@@ -222,11 +217,8 @@
     d.err = ''; d.kind = guessKind(d.title);
     if (AI.on) {
       d.busy = true; render();
-      try {
-        const r = await AI.json(L().P.plan({ title: d.title }));
-        const ms = (r && Array.isArray(r.milestones) ? r.milestones : []).map(m => ({ name: String(m && m.name || '').trim().slice(0, 20), doneWhen: String(m && m.doneWhen || '').trim().slice(0, 50) })).filter(m => m.name).slice(0, 5);
-        if (ms.length >= 2) { d.miles = ms; d.first = String(r.firstStep || '').trim().slice(0, 100); if (L().kinds[r.kind]) d.kind = r.kind; }
-      } catch (e) { AI.fail(e); }
+      const r = await Brain.run('plan', { title: d.title });
+      if (r.out) { d.miles = r.out.miles; d.first = r.out.first; if (L().kinds[r.out.kind]) d.kind = r.out.kind; }
       d.busy = false; if (S.goal) return;
     }
     if (!d.miles) d.miles = defMiles();                                                // 连不上就给一份通用的三关，照样能往下走
@@ -292,7 +284,7 @@
       const m = ui.thread[i], isNew = i >= ui.shown, nw = isNew ? ' new' : '';
       const acts = m.acts ? '<div class="acts">' + m.acts.map(a => '<button type="button" class="chip' + (a.ai ? ' ai-only' : '') + '" data-act="' + a.act + '" data-i="' + i + '"' + (a.x != null ? ' data-x="' + esc(a.x) + '"' : '') + '>' + esc(a.label) + '</button>').join('') + '</div>' : '';
       if (m.t === 'sys') h += '<div class="sys' + nw + '">' + m.text + '</div>';
-      else if (m.t === 'pet') h += '<div class="msg pet' + (prevPet ? '' : ' lead') + nw + '"' + (isNew ? ' data-full="' + esc(m.text) + '"' : '') + '><span class="tx">' + (isNew ? '' : esc(m.text)) + '</span>' + (isNew ? '<span class="rest" aria-hidden="true">' + esc(m.text) + '</span>' : '') + acts + '</div>';
+      else if (m.t === 'pet') h += '<div class="msg pet' + (prevPet ? '' : ' lead') + nw + '"' + (m.tr ? ' data-tr="' + m.tr + '" data-ti="' + i + '"' : '') + (isNew ? ' data-full="' + esc(m.text) + '"' : '') + '><span class="tx">' + (isNew ? '' : esc(m.text)) + '</span>' + (isNew ? '<span class="rest" aria-hidden="true">' + esc(m.text) + '</span>' : '') + acts + '</div>';
       else h += '<div class="msg me' + nw + '">' + esc(m.text) + '</div>';
       prevPet = m.t === 'pet';
     }
@@ -304,6 +296,9 @@
     const inrow = (id, ph, label, val) => '<div class="inrow"><input type="text" id="' + id + '" maxlength="300" autocomplete="off" enterkeyhint="send" aria-label="' + esc(ph) + '" placeholder="' + esc(ph) + '" value="' + esc(val || '') + '"><button type="submit" class="btn primary">' + label + '</button></div>';
     const sub = (act, label) => '<div class="sublinks"><button type="button" class="linkbtn" data-act="' + act + '">' + label + '</button></div>';
     if (ui.busy) return '';
+    const tm = Tools.timer();
+    if (tm && st === 'idle') return '<div class="timer" role="timer"><div class="k">' + t('timerLabel') + '</div><div class="clock num" id="clock">' + mmss(Tools.left()) + '</div><p class="hint">' + t('timerHint') + '</p><div class="btns"><button type="button" class="btn primary" data-act="timerDone">' + t('timerDone') + '</button><button type="button" class="btn" data-act="timerStop">' + t('timerStop') + '</button></div></div>';
+    if (minorNight() && st === 'idle') return '<p class="note" style="text-align:center">' + t('minorNight') + '</p>';
     if (st === 'report') return inrow('rp-text', t('rpPh'), t('send')) + sub('cancelTalk', t('cancel'));
     if (st === 'answer') return inrow('an-text', t('anPh'), t('send')) + sub('skipAnswer', t('skip'));
     if (st === 'promise') {
@@ -313,8 +308,9 @@
     if (st === 'editPromise') return inrow('pm-text', t('pmPh'), t('pmOk'), g.promise.text) + sub('cancelTalk', t('cancel'));
     if (st === 'chat') return inrow('ch-text', t('chPh'), t('send')) + '<p class="hint">' + t('chHint') + '</p>' + sub('cancelTalk', t('chEnd'));
     if (!P.isAwake(g, now()) && !ui.woke) return '<button type="button" class="btn primary cta" data-act="wake">' + t('btnWake') + '</button>';
-    return '<button type="button" class="btn primary cta" data-act="report">' + t('btnReport') + '</button><div class="sublinks">' + (g.promise.text ? '<button type="button" class="linkbtn" data-act="stuck">' + t('btnStuck') + '</button>' : '') + '<button type="button" class="linkbtn ai-only" data-act="chat">' + t('btnChat') + '</button></div>';
+    return '<button type="button" class="btn primary cta" data-act="report">' + t('btnReport') + '</button><div class="sublinks">' + (g.promise.text ? '<button type="button" class="linkbtn" data-act="stuck">' + t('btnStuck') + '</button>' : '') + (Config.flag('chat') && !(S.agent && S.agent.minor) ? '<button type="button" class="linkbtn ai-only" data-act="chat">' + t('btnChat') + '</button>' : '') + '</div>';
   }
+  const mmss = ms => { const x = Math.ceil(ms / 1000); return String(Math.floor(x / 60)).padStart(2, '0') + ':' + String(x % 60).padStart(2, '0'); };
   function talkHTML() {
     const g = S.goal, has = !!g.promise.text, showNote = ui.step === 'idle' && !ui.busy && (P.isAwake(g, now()) || ui.woke);
     return '<div class="thread" id="thread">' + threadHTML() + '</div>' +
@@ -335,6 +331,8 @@
     if (grew || focusId) { const tgt = $('f-talk'); if (tgt) setTimeout(() => tgt.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 60); }
   }
   function tickLive() {
+    const tm = Tools.timer();
+    if (tm) { const left = Tools.left(), c = $('clock'); if (c) c.textContent = mmss(left); if (left <= 0 && !ui.timerEnding) { ui.timerEnding = true; timerEnd(true).finally(() => { ui.timerEnding = false; }); } }
     const g = S.goal; if (!g || route() !== 'pet' || sheetOpen() || ui.lock || !$('pet')) return; const was = P.isAwake(g, now() - 1000), found = P.tick(S, now());
     if (found && ui.step === 'idle' && !ui.busy && (P.isAwake(g, now()) || ui.woke)) { announceFound(); renderPet(); renderTalk(); }
     if (was !== P.isAwake(g, now())) { renderPet(); renderTalk(); }
@@ -346,41 +344,63 @@
   function sysBonus(r, mult) { const g = S.goal, bits = []; if (mult > 1.05) bits.push(t('sysBonus', { m: mulStr(mult) })); if (r.up) bits.push('<b>' + t('sysUp', { name: esc(g.name) }) + '</b>'); if (bits.length) push('sys', bits.join(' · ')); }
   async function submitReport() {
     const g = S.goal, text = $('rp-text').value.trim(); if (!text) { $('rp-text').focus(); return; }
-    const from = origin('rp-text'), prior = forPrompt(goalLogs(g).slice(-6));
-    const r = P.report(S, now(), { text, size: sizeOf(text), tz: tz() }), log = r.log; ui.lastLog = ui.promiseLog = log.id; ui.woke = true; ui.suggest = ''; Store.save();
+    const lv = Guard.crisis(text); if (lv === 2) { crisisStop(text); return; }
+    const from = origin('rp-text'), prior = lastLogs(g);
+    const r = P.report(S, now(), { text, size: sizeOf(text), tz: tz() }), log = r.log; ui.lastLog = ui.promiseLog = log.id; ui.woke = true; ui.suggest = ''; ev('report', { xp: log.xp }); Store.save();
     push('me', text); sysBonus({ up: r.up }, log.mult); if (log.patched) push('sys', t('sysPatch', { name: esc(g.name) }));
     let sayText = say('react'), ask = L().askFallback[(g.adv - 1) % L().askFallback.length];
     ui.step = 'answer'; ui.busy = true; renderTalk(); feed(from, { xp: log.xp, up: r.up });
     const wait = sleep(reduce() ? 0 : 900);                                            // 至少等它把这一口咽下去
-    if (AI.on) { try { const j = await AI.json(L().P.react({ g, mile: curMile(g).name, text, logs: prior }), 'quick'); if (j && j.say) sayText = String(j.say).slice(0, 80); if (j && j.ask) ask = String(j.ask).slice(0, 60); if (j && j.next) ui.suggest = String(j.next).trim().slice(0, 40); } catch (e) { AI.fail(e); } }
+    let tr = '';
+    if (AI.on) { const r = await Brain.run('react', { g, mile: curMile(g).name, text, logs: prior, mem: memText(g) }); tr = r.tr; if (r.out) { sayText = r.out.say; if (r.out.ask) ask = r.out.ask; if (r.out.next) ui.suggest = r.out.next; } }
     await wait; if (!S.goal || S.goal.id !== g.id) return;
     log.reply = sayText; ui.askQ = ask; ui.busy = false; Store.save();
-    push('pet', sayText + '\n' + ask); renderTalk('an-text');
+    push('pet', sayText + '\n' + ask, null, tr); if (lv === 1) crisisLow(); renderTalk('an-text');
   }
   function toPromise() { ui.step = 'promise'; push('pet', say('askPromise')); renderTalk('pm-text'); }
   function submitAnswer() {
     const a = $('an-text').value.trim(); if (a.length < 2) { $('an-text').focus(); return; }
-    const from = origin('an-text'), r = P.answer(S, now(), ui.lastLog, ui.askQ, a); Store.save();
-    push('me', a); sysBonus(r, 1); toPromise(); feed(from, r);
+    const lv = Guard.crisis(a); if (lv === 2) { crisisStop(a); return; }
+    const from = origin('an-text'), r = P.answer(S, now(), ui.lastLog, ui.askQ, a); ev('answer'); Store.save();
+    push('me', a); sysBonus(r, 1); if (lv === 1) crisisLow(); toPromise(); feed(from, r);
   }
   function finishPromise(text, fromLog) {
-    const g = S.goal, from = origin('pm-text'), r = P.promise(S, now(), text, fromLog ? ui.promiseLog : null); Store.save();
+    const g = S.goal, from = origin('pm-text'), r = P.promise(S, now(), text, fromLog ? ui.promiseLog : null); ev('promise'); Store.save();
     push('me', text); const keep = ui.thread.length; sysBonus(r, 1);
-    push('pet', say('promised')); if (g.cur === 0 && g.stageAdv >= 2 && tipOnce('stage')) push('pet', fill(L().tips.stage, { mile: curMile(g).name }));
+    push('pet', say('promised'), toolActs()); if (g.cur === 0 && g.stageAdv >= 2 && tipOnce('stage')) push('pet', fill(L().tips.stage, { mile: curMile(g).name }));
+    const ns = Nudge.st(); if (Nudge.available && Config.flag('nudges') && !ns.on && !ns.asked) { ns.asked = true; push('pet', t('nudgeAsk'), [{ act: 'nudgeYes', label: t('nudgeYes') }, { act: 'nudgeNo', label: t('nudgeNo') }]); }
     ui.step = 'idle'; ui.promiseLog = null; Store.save();
     if (fromLog) { ui.from = keep; ui.shown = keep; }                                  // 一轮讲完，屏幕回到最简单的样子；整段对话在日记里
     renderTalk(); if (fromLog) window.scrollTo({ top: 0, behavior: 'smooth' });
     if (r.xp) feed(from, r); else { const p = $('pill'); if (p) { p.textContent = t('stAwake'); p.classList.remove('sleep'); } flash('happy', 1400); }
+    afterRound(g);
+  }
+  const toolActs = () => Config.flag('tools') ? [{ act: 'timerStart', label: t('toolTimer') }, { act: 'calAdd', label: t('toolCal') }] : null;
+  // 一轮讲完：后台整理记忆、写好提醒文案、重排提醒。都不阻塞界面，失败也不影响什么。
+  function afterRound(g) {
+    Nudge.sync().catch(() => {});
+    Memory.updateGoal(g).then(() => { Store.save(); return Nudge.prepare(g, memText(g)); }).then(() => Store.save()).catch(() => {});
+  }
+  /* ---------- 安全：危机、依赖、时长 ---------- */
+  function crisisStop(text) {
+    const inp = $('rp-text') || $('an-text') || $('ch-text') || $('pm-text'); if (inp) inp.value = '';
+    push('me', text); push('pet', t('crisisBody'), [{ act: 'crisisHelp', label: t('crisisHelp') }]); ui.step = 'idle'; ui.busy = false;
+    ev('crisis', { lv: 2 }); Store.save(); renderTalk(); sheetCrisis();
+  }
+  function crisisLow() { push('pet', t('crisisLow'), [{ act: 'crisisHelp', label: t('crisisHelp') }]); ev('crisis', { lv: 1 }); }
+  function sheetCrisis() {
+    openSheet('<h2>' + t('crisisTitle') + '</h2><p>' + t('crisisBody') + '</p><div class="lines">' + L().crisisLines.map(x => '<a class="line" href="tel:' + x[1].split(' ')[0] + '"><span>' + esc(x[0]) + '</span><b class="num">' + esc(x[1]) + '</b></a>').join('') + '</div><p class="note">' + t('crisisOther') + '</p><button type="button" class="btn primary cta" data-act="close">' + t('crisisOk') + '</button>');
   }
   function submitPromise() { const x = $('pm-text').value.trim(); if (!x) { $('pm-text').focus(); return; } finishPromise(x, ui.step === 'promise'); }
   async function submitChat() {
     const g = S.goal, text = $('ch-text').value.trim(); if (!text || !AI.on) return;
-    push('me', text); ui.busy = true; renderTalk();
-    const turns = [{ role: 'user', content: L().P.chatRules({ g, mile: curMile(g).name, logs: forPrompt(goalLogs(g).slice(-8)) }) }].concat(ui.chat, [{ role: 'user', content: text }]);
-    try {
-      const reply = (await AI.text(turns, 'quick')).slice(0, 600); if (!S.goal || S.goal.id !== g.id) return;
-      ui.chat.push({ role: 'user', content: text }, { role: 'assistant', content: reply }); if (ui.chat.length > 12) ui.chat = ui.chat.slice(-12); ui.chatN++; push('pet', reply);
-    } catch (e) { const m = AI.fail(e); if (m) push('sys', esc(m)); }
+    const lv = Guard.crisis(text); if (lv === 2) { crisisStop(text); return; }
+    push('me', text); ui.busy = true; ev('chat'); renderTalk();
+    const turns = [{ role: 'user', content: L().P.chatRules({ g, mile: curMile(g).name, logs: lastLogs(g), mem: memText(g) }) }].concat(ui.chat, [{ role: 'user', content: text }]);
+    const r = await Brain.run('chat', null, { messages: turns }); if (!S.goal || S.goal.id !== g.id) return;
+    if (r.out) { ui.chat.push({ role: 'user', content: text }, { role: 'assistant', content: r.out }); if (ui.chat.length > 12) ui.chat = ui.chat.slice(-12); ui.chatN++; push('pet', r.out, null, r.tr); }
+    else push('sys', esc(r.err || AI.fillWho(L().err.other)));
+    if (lv === 1) crisisLow();
     ui.busy = false;
     if (ui.chatN >= 6 || !AI.on) { if (ui.chatN >= 6) push('pet', say('chatEnd')); ui.step = 'idle'; renderTalk(); } else { ui.step = 'chat'; renderTalk('ch-text'); }
   }
@@ -388,16 +408,16 @@
     const g = S.goal; let opts = L().stuckFallback; fresh();
     if (AI.on) {
       ui.busy = true; renderTalk();
-      try { const r = await AI.json(L().P.shrink({ g }), 'quick'); const o = (Array.isArray(r) ? r : []).map(x => String(x).trim().slice(0, 40)).filter(Boolean).slice(0, 3); if (o.length) opts = o; } catch (e) { AI.fail(e); }
+      const r = await Brain.run('shrink', { g, mem: memText(g) }); if (r.out) opts = r.out;
       if (!S.goal || S.goal.id !== g.id) return; ui.busy = false;
     }
-    ui.step = 'idle'; push('pet', say('stuck'), opts.map(o => ({ act: 'pickPromise', label: o, x: o }))); renderTalk();
+    ui.step = 'idle'; push('pet', say('stuck'), opts.map(o => ({ act: 'pickPromise', label: o, x: o })).concat(Config.flag('tools') ? [{ act: 'timerStart', label: t('toolTimer') }] : [])); renderTalk();
   }
   async function actWelcomeAI(el) {
     const g = S.goal, msg = ui.thread[+el.dataset.i]; if (!AI.on || ui.busy) return; if (msg) msg.acts = null;
     ui.busy = true; renderTalk();
-    try { const text = (await AI.text(L().P.welcome({ g, mile: curMile(g).name, gap: Math.floor(awayDays(g)), logs: forPrompt(goalLogs(g).slice(-6)) }))).slice(0, 400); if (S.goal && S.goal.id === g.id) push('pet', text); }
-    catch (e) { const m = AI.fail(e); if (m) push('sys', esc(m)); }
+    const r = await Brain.run('welcome', { g, mile: curMile(g).name, gap: Math.floor(awayDays(g)), logs: lastLogs(g), mem: memText(g) });
+    if (S.goal && S.goal.id === g.id) { if (r.out) push('pet', r.out, null, r.tr); else if (r.err) push('sys', esc(r.err)); }
     ui.busy = false; ui.step = 'idle'; renderTalk();
   }
   function actPoke() {
@@ -434,9 +454,11 @@
     const logs = forPrompt(goalLogs(g, stage).slice(-30));
     ui.lock = true; closeSheet(); window.scrollTo({ top: 0 }); finishTyping();
     const r = P.molt(S, now(), {}); Store.save();                                     // 状态先落盘；屏幕上还是旧的样子，下面演给人看
-    if (AI.on) AI.text(L().P.shell({ g: { title: info.title }, mile: mileName, logs })).then(text => {
-      const ms = S.goal && S.goal.id === info.id ? S.goal.miles : (S.habitat.find(h => h.id === info.id) || {}).miles; if (ms && ms[stage] && ms[stage].card) { ms[stage].card.text = text.slice(0, 300); Store.save(); }
-    }).catch(e => AI.fail(e));
+    ev('molt', { stage });
+    if (AI.on) Brain.run('shell', { g: { title: info.title }, mile: mileName, logs }).then(x => {
+      const ms = S.goal && S.goal.id === info.id ? S.goal.miles : (S.habitat.find(h => h.id === info.id) || {}).miles; if (x.out && ms && ms[stage] && ms[stage].card) { ms[stage].card.text = x.out; Store.save(); }
+    });
+    if (r.done) { const a = S.habitat[S.habitat.length - 1]; if (a) Memory.updateUser(a).then(ok => { if (ok) Store.save(); }); Nudge.sync().catch(() => {}); }
     if (!reduce() && $('actor')) {
       anim('shakey', 1100); Sfx.rumble(); flash('ask', 1100); await sleep(1000);
       const st = $('pet'), a = $('actor'); if (st && a) { st.classList.add('flash'); const [x, y] = Fx.center(a); Fx.burst(x, y, { kind: 'shard', colors: [hues[1], hues[0], '#fff', hues[2]], count: 28, speed: 380, size: 11 }); Fx.ring(x, y, '#fff'); }
@@ -473,11 +495,108 @@
       '<section style="grid-template-columns:1fr auto;align-items:center"><div class="lab">' + t('setSound') + '</div>' + sw('setSound', !S.mute) + '</section>' +
       (g ? '<section><div class="lab">' + t('setVoice') + '</div><div class="chips">' + Object.keys(L().styles).map(k => '<button type="button" class="chip" data-act="setStyle" data-x="' + k + '" aria-pressed="' + (g.style === k) + '">' + L().styles[k] + '</button>').join('') + '</div></section>' : '') +
       (g ? '<section><div class="lab">' + t('setTime') + '</div><p class="note">' + t('setTimeHint') + '</p><div class="btns">' + [1, 3, 7, 14].map(d => '<button type="button" class="btn small" data-act="skip" data-d="' + d + '">' + t('setTimeBtn', { d }) + '</button>').join('') + '</div></section>' : '') +
+      '<section><div class="lab">' + t('setBrain') + '</div><p class="note">' + (AI.on ? t('setAIOn', { who: esc(AI.who) }) : t('setAIOff')) + '</p><div class="btns"><button type="button" class="btn small" data-act="llm">' + t(AI.ext ? 'llmChange' : 'llmConnect') + '</button></div></section>' +
+      nudgeSection() +
+      '<section><div class="lab">' + t('setMem') + '</div><div class="btns"><button type="button" class="btn small" data-act="memOpen">' + t('setMemBtn') + '</button></div></section>' +
+      '<section style="grid-template-columns:1fr auto;align-items:center"><div><div class="lab">' + t('minorTitle') + '</div><p class="note">' + t('minorLead') + '</p></div>' + sw('setMinor', !!(S.agent && S.agent.minor)) + '</section>' +
       (updateBridge ? '<section><div class="lab">软件更新</div><p class="note">检查当前客户端版本和兼容的更新。</p><button type="button" class="btn small" data-act="updateCheck">检查更新</button></section>' : '') +
-      '<section><div class="lab">' + t('setAbout') + '</div><p class="note">' + t(Store.kind === 'cloud' ? 'setSaveCloud' : Store.kind === 'local' ? 'setSaveLocal' : 'setSaveNone') + ' ' + t(AI.on ? 'setAIOn' : 'setAIOff') + '</p>' +
-      '<div class="btns"><button type="button" class="btn small" data-act="export" id="btn-export">' + t('setExport') + '</button>' + (confirmReset ? '<button type="button" class="btn small hot" data-act="resetGo">' + t('setResetGo') + '</button>' : '<button type="button" class="btn small" data-act="reset">' + t('setReset') + '</button>') + '</div>' +
+      '<section><div class="lab">' + t('setAbout') + '</div><p class="note">' + t(Store.kind === 'cloud' ? 'setSaveCloud' : Store.kind === 'local' ? 'setSaveLocal' : 'setSaveNone') + (Config.get('filing') ? ' ' + esc(t('filing', { x: Config.get('filing') })) : '') + '</p>' +
+      '<div class="btns"><button type="button" class="btn small" data-act="export" id="btn-export">' + t('setExport') + '</button><button type="button" class="btn small" data-act="privOpen">' + t('privTitle') + '</button><button type="button" class="btn small" data-act="diagOpen">' + t('diagTitle') + '</button>' + (confirmReset ? '<button type="button" class="btn small hot" data-act="resetGo">' + t('setResetGo') + '</button>' : '<button type="button" class="btn small" data-act="reset">' + t('setReset') + '</button>') + '</div>' +
       (confirmReset ? '<p class="err">' + t('setResetLead') + '</p>' : '') + '<input type="text" id="export-box" readonly hidden aria-label="' + esc(t('setExport')) + '"></section>' +
       '<div class="sublinks"><button type="button" class="linkbtn" data-act="close">' + t('close') + '</button></div>');
+  }
+
+  /* ---------- 接入外部大模型 ---------- */
+  function sheetLLM(d) {
+    const cur = AI.ext || {};
+    d = d || ui.llm || (ui.llm = { preset: cur.preset || 'deepseek', base: cur.base || LLM.PRESETS.deepseek.base, key: cur.key || '', model: cur.model || LLM.PRESETS.deepseek.model, quick: cur.quick || '', proto: cur.proto || 'openai', msg: '', ok: false, busy: false });
+    const pr = LLM.PRESETS[d.preset] || LLM.PRESETS.custom;
+    const inp = (id, k, lab, ph, type, hint) => '<div class="field"><label for="' + id + '" style="font:inherit;font-size:.92rem;font-weight:500">' + lab + '</label><input type="' + (type || 'text') + '" id="' + id + '" data-llm="' + k + '" autocomplete="off" spellcheck="false" placeholder="' + esc(ph || '') + '" value="' + esc(d[k] || '') + '">' + (hint ? '<span class="hint">' + hint + '</span>' : '') + '</div>';
+    openSheet('<h2>' + t('llmTitle') + '</h2><p class="note">' + t('llmLead') + '</p>' +
+      '<div class="field"><span class="lab" style="font:inherit;font-size:.92rem;font-weight:500">' + t('llmProvider') + '</span><div class="chips">' + Object.keys(LLM.PRESETS).map(k => '<button type="button" class="chip" data-act="llmPreset" data-x="' + k + '" aria-pressed="' + (d.preset === k) + '">' + esc(LLM.PRESETS[k].name) + '</button>').join('') + '</div>' +
+      (pr.direct ? '' : '<span class="hint">' + t('llmNoDirect') + '</span>') + '</div>' +
+      inp('llm-base', 'base', t('llmBase'), 'https://…/v1', 'url', d.preset === 'custom' ? t('llmBaseHint') : '') +
+      inp('llm-key', 'key', t('llmKey'), d.preset === 'custom' ? t('llmKeyOpt') : 'sk-…', 'password', t('llmKeyHint')) +
+      inp('llm-model', 'model', t('llmModel'), t('llmModelPh'), 'text', pr.doc ? t('llmModelHint', { url: '<a href="' + pr.doc + '" target="_blank" rel="noopener">' + esc(LLM.hostOf(pr.doc)) + '</a>' }) : '') +
+      inp('llm-quick', 'quick', t('llmQuick'), t('llmQuickPh'), 'text', '') +
+      (d.preset === 'custom' ? '<div class="field"><span class="lab" style="font:inherit;font-size:.92rem;font-weight:500">' + t('llmProto') + '</span><div class="chips" role="radiogroup" aria-label="' + esc(t('llmProto')) + '">' + [['openai', t('llmProtoOpenAI')], ['anthropic', t('llmProtoAnthropic')]].map(o => '<button type="button" class="chip" data-act="llmProto" data-x="' + o[0] + '" aria-pressed="' + (d.proto === o[0]) + '">' + o[1] + '</button>').join('') + '</div></div>' : '') +
+      '<p class="' + (d.ok ? 'note' : 'err') + '" id="llm-msg" aria-live="polite">' + (d.busy ? t('llmTesting') : esc(d.msg || '')) + '</p>' +
+      '<div class="btns"><button type="button" class="btn primary" data-act="llmSave"' + (d.busy ? ' disabled' : '') + '>' + t('llmSave') + '</button><button type="button" class="btn" data-act="llmTest"' + (d.busy ? ' disabled' : '') + '>' + t('llmTest') + '</button></div>' +
+      '<div class="sublinks">' + (AI.ext ? '<button type="button" class="linkbtn" data-act="llmOff">' + t('llmOff') + '</button>' : '') + '<button type="button" class="linkbtn" data-act="llmBack">' + t(S.goal ? 'back' : 'close') + '</button></div>');
+  }
+  function llmRead() {
+    const d = ui.llm; for (const el of document.querySelectorAll('[data-llm]')) d[el.dataset.llm] = el.value.trim();
+    const pr = LLM.PRESETS[d.preset] || LLM.PRESETS.custom;
+    return { preset: d.preset, proto: d.preset === 'custom' ? d.proto : pr.proto, base: LLM.trimBase(d.base), key: d.key, model: d.model, quick: d.quick };
+  }
+  function llmCheck(c) {
+    if (!/^https?:\/\/[^\s]+$/.test(c.base)) return t('llmNeedBase');
+    if (location.protocol === 'https:' && /^http:\/\//.test(c.base) && !/^http:\/\/(localhost|127\.0\.0\.1)/.test(c.base)) return t('llmMixed');
+    if (!c.model) return t('llmNeedModel');
+    if (!c.key && c.preset !== 'custom') return t('llmNeedKey');
+    return '';
+  }
+  function llmErr(e) {
+    const c = e && e.code, map = { auth: 'llmEAuth', not_found: 'llmENotFound', rate_limited: 'llmERate', quota: 'llmEQuota', network: 'llmENetwork', timeout: 'llmETimeout', upstream: 'llmEUpstream', refused: 'llmERefused' };
+    return t(map[c] || 'llmEOther') + (e && e.detail && c !== 'network' ? '（' + e.detail + '）' : '');
+  }
+  async function llmRun(save) {
+    const d = ui.llm, c = llmRead(), bad = llmCheck(c);
+    if (bad) { d.msg = bad; d.ok = false; sheetLLM(d); return; }
+    d.busy = true; d.msg = ''; sheetLLM(d);
+    try {
+      const r = await LLM.test(c);
+      d.ok = true; d.msg = t(save ? 'llmSaved' : 'llmOk', { ms: r.ms, who: LLM.label(c) });
+      if (save) { AI.use(c); Sfx.sparkle && Sfx.sparkle(); }
+    } catch (e) { d.ok = false; d.msg = llmErr(e); }
+    d.busy = false; if (sheetOpen() && $('llm-msg')) sheetLLM(d);
+    if (save && d.ok) { render(); }
+  }
+
+  /* ---------- 提醒、它记得、隐私、诊断、反馈 ---------- */
+  function nudgeSection() {
+    if (!Config.flag('nudges') || !S.goal) return '';
+    const n = Nudge.st(), sw = (act, onNow) => '<div class="switch">' + [[true, t('setOn')], [false, t('setOff')]].map(o => '<button type="button" data-act="' + act + '" data-x="' + (o[0] ? 1 : 0) + '" aria-pressed="' + (onNow === o[0]) + '">' + o[1] + '</button>').join('') + '</div>';
+    if (!Nudge.available) return '<section><div class="lab">' + t('setNudge') + '</div><p class="note">' + t('setNudgeWeb') + '</p></section>';
+    const q = n.queue[0], when = q ? new Date(q.at - (S.offset || 0)).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    return '<section style="grid-template-columns:1fr auto;align-items:center"><div><div class="lab">' + t('setNudge') + '</div><p class="note">' + t('setNudgeLead') + '</p></div>' + sw('nudgeSet', !!n.on) + '</section>' +
+      (n.denied ? '<p class="err">' + t('setNudgeDenied') + '</p>' : '') +
+      (n.on ? '<section><div class="lab" style="font-size:.95rem">' + t('setQuiet') + '</div><div class="chips">' + L().quietOpts.map((o, i) => '<button type="button" class="chip" data-act="nudgeQuiet" data-x="' + i + '" aria-pressed="' + (n.quiet[0] === o[0][0] && n.quiet[1] === o[0][1]) + '">' + o[1] + '</button>').join('') + '</div>' +
+        '<div class="chips"><button type="button" class="chip" data-act="nudgeDue" aria-pressed="' + !!n.dueOnly + '">' + t('setDueOnly') + '</button></div><p class="note">' + (q ? t('setNudgeNext', { when }) : t('setNudgeNone')) + '</p></section>' : '');
+  }
+  function sheetMem() {
+    const g = S.goal, mem = Memory.all(), gm = g ? Memory.goal(g.id) : null, u = mem.user, L0 = L();
+    const field = (scope, id, k, v) => '<div class="field"><label for="mem-' + scope + '-' + k + '" style="font:inherit;font-size:.9rem;font-weight:500">' + L0.memLabels[k] + '</label><input type="text" id="mem-' + scope + '-' + k + '" data-mem="' + scope + '" data-mid="' + esc(id || '') + '" data-mk="' + k + '" maxlength="120" value="' + esc(v || '') + '"></div>';
+    let h = '<h2>' + t('memTitle') + '</h2><p class="note">' + t('memLead') + '</p>';
+    if (g) h += '<div class="lab">' + t('memGoalHead', { title: esc(g.title) }) + (gm && gm.src ? ' <span class="note">· ' + L0.memSrc[gm.src] + '</span>' : '') + '</div>' + Memory.GOAL_FIELDS.map(k => field('goal', g.id, k, gm && gm[k])).join('');
+    h += '<div class="lab">' + t('memUserHead') + '</div>' + (u || S.habitat.length ? Memory.USER_FIELDS.map(k => field('user', '', k, u && u[k])).join('') : '<p class="note">' + t('memEmpty') + '</p>');
+    h += '<div class="btns"><button type="button" class="btn primary" data-act="memSave">' + t('memSave') + '</button><button type="button" class="btn hot" data-act="memClear">' + t('memClear') + '</button></div><div class="sublinks"><button type="button" class="linkbtn" data-act="settings">' + t('back') + '</button></div>';
+    openSheet(h);
+  }
+  function sheetPriv(mode) {
+    let h = '<h2>' + t('privTitle') + '</h2><p class="note">' + t('privLead') + '</p>';
+    if (mode === 'import') h += '<div class="field"><label for="imp-box" style="font:inherit;font-size:.92rem;font-weight:500">' + t('privImport') + '</label><textarea id="imp-box" rows="5" spellcheck="false"></textarea><span class="hint">' + t('privImportLead') + '</span></div><p class="err" id="imp-err"></p><div class="btns"><button type="button" class="btn primary" data-act="importGo">' + t('privImportGo') + '</button><button type="button" class="btn" data-act="privOpen">' + t('cancel') + '</button></div>';
+    else if (mode === 'delete') h += '<p class="err">' + t('privDeleteLead') + '</p><div class="btns"><button type="button" class="btn hot" data-act="deleteGo">' + t('privDeleteGo') + '</button><button type="button" class="btn" data-act="privOpen">' + t('cancel') + '</button></div>';
+    else h += '<div class="btns"><button type="button" class="btn small" data-act="importOpen">' + t('privImport') + '</button><button type="button" class="btn small hot" data-act="deleteOpen">' + t('privDelete') + '</button></div>';
+    openSheet(h + '<div class="sublinks"><button type="button" class="linkbtn" data-act="settings">' + t('back') + '</button></div>');
+  }
+  function sheetDiag() {
+    const since = Date.now() - 7 * DAY, st = Trace.stats(since), evs = (S.events || []).filter(e => e.at >= now() - 7 * DAY);
+    const days = new Set(evs.filter(e => e.t === 'open' || e.t === 'report').map(e => P.dayKey(e.at, tz()))).size;
+    const gn = L().guardNames, gl = Object.keys(st.guard).map(k => (gn[k] || k) + ' ' + st.guard[k]).join('，');
+    openSheet('<h2>' + t('diagTitle') + '</h2><p class="note">' + t('diagLead') + '</p><ul class="diag">' +
+      '<li>' + t('diagCalls', { n: st.calls, ok: Math.round(st.ok * 100), ms: st.ms }) + '</li><li>' + t('diagRetry', { r: st.retry, f: st.fallback }) + '</li>' +
+      '<li>' + (gl ? t('diagGuard', { list: gl }) : t('diagGuardNone')) + '</li><li>' + t('diagNudge', { s: evs.filter(e => e.t === 'nudge.sent').length, o: evs.filter(e => e.t === 'nudge.open').length }) + '</li>' +
+      '<li>' + t('diagActive', { d: days }) + '</li><li>' + t('diagFb', { n: st.fb }) + '</li><li>' + t('diagSrc', { src: Config.src }) + '</li></ul>' +
+      '<div class="btns"><button type="button" class="btn small" data-act="diagExport" id="btn-diag">' + t('diagExport') + '</button></div><input type="text" id="diag-box" readonly hidden aria-label="' + esc(t('diagExport')) + '"><div class="sublinks"><button type="button" class="linkbtn" data-act="settings">' + t('back') + '</button></div>');
+  }
+  function sheetFeedback(i) {
+    const m = ui.thread[i]; if (!m || !m.tr || !Config.flag('feedback')) return;
+    openSheet('<h2>' + t('fbTitle') + '</h2><blockquote class="quote">' + esc(m.text) + '</blockquote><p class="note">' + t('fbLead') + '</p><div class="chips">' + L().fbReasons.map(r => '<button type="button" class="chip" data-act="fbGo" data-i="' + i + '" data-x="' + r[0] + '">' + r[1] + '</button>').join('') + '</div><div class="sublinks"><button type="button" class="linkbtn" data-act="close">' + t('cancel') + '</button></div>');
+  }
+  async function timerEnd(auto) {
+    const g = S.goal; await Tools.stopTimer(true); if (!g) return;
+    Sfx.sparkle(); Sfx.buzz(20); fresh(); push('pet', t('timerEnd')); ui.step = 'report'; Store.save(); render(); setTimeout(() => { const f = $('rp-text'); if (f) f.focus(); }, 60);
   }
 
   /* ---------- 日记、栖地 ---------- */
@@ -509,7 +628,13 @@
 
   /* ---------- 动作 ---------- */
   const acts = {
-    close() { closeSheet(); }, settings() { sheetSettings(false); }, goHome() { closeSheet(); location.hash = 'home'; }, goPet() { location.hash = 'pet'; },
+    close() { closeSheet(); }, settings() { ui.llm = null; sheetSettings(false); },
+    llm() { ui.llm = null; sheetLLM(); },
+    llmPreset(el) { const d = ui.llm; llmRead(); const k = el.dataset.x, p = LLM.PRESETS[k], was = LLM.PRESETS[d.preset]; d.preset = k; d.proto = p.proto; if (k !== 'custom' || !d.base || (was && d.base === was.base)) d.base = p.base; d.model = p.model; d.quick = p.quick || ''; d.msg = ''; d.ok = false; sheetLLM(d); },
+    llmProto(el) { llmRead(); ui.llm.proto = el.dataset.x; sheetLLM(ui.llm); },
+    llmBack() { ui.llm = null; if (S.goal) sheetSettings(false); else closeSheet(); },
+    llmTest() { llmRun(false); }, llmSave() { llmRun(true); },
+    llmOff() { AI.use(null); ui.llm = null; render(); sheetSettings(false); toast(t('llmOffDone')); }, goHome() { closeSheet(); location.hash = 'home'; }, goPet() { location.hash = 'pet'; },
     async updateCheck() {
       const bridge = window.YangyizhiDesktop || nativeUpdateBridge;
       if (!bridge) return;
@@ -550,6 +675,35 @@
         openSheet('<h2>无法打开更新文件</h2><p class="err">' + esc(error.message || '文件校验失败。') + '</p><div class="sublinks"><button type="button" class="linkbtn" data-act="close">关闭</button></div>');
       }
     },
+    nudgeYes(el) { const m = ui.thread[+el.dataset.i]; if (m) m.acts = null; Nudge.enable(true).then(r => { push('pet', r === 'on' ? t('nudgeOn') : t('setNudgeDenied')); Store.save(); renderTalk(); }); },
+    nudgeNo(el) { const m = ui.thread[+el.dataset.i]; if (m) m.acts = null; push('pet', t('nudgeOff')); Store.save(); renderTalk(); },
+    nudgeSet(el) { Nudge.enable(el.dataset.x === '1').then(() => { Store.save(); sheetSettings(false); }); },
+    nudgeQuiet(el) { Nudge.st().quiet = L().quietOpts[+el.dataset.x][0].slice(); Nudge.sync().then(() => { Store.save(); sheetSettings(false); }); },
+    nudgeDue() { const n = Nudge.st(); n.dueOnly = !n.dueOnly; Nudge.sync().then(() => { Store.save(); sheetSettings(false); }); },
+    memOpen() { sheetMem(); },
+    memSave() { for (const el of document.querySelectorAll('[data-mem]')) { const cur = el.dataset.mem === 'user' ? (Memory.user() || {})[el.dataset.mk] : (Memory.goal(el.dataset.mid) || {})[el.dataset.mk]; if ((cur || '') !== el.value.trim()) Memory.edit(el.dataset.mem, el.dataset.mid, el.dataset.mk, el.value); } ev('mem.edit'); Store.save(); toast(t('memSaved')); sheetMem(); },
+    memClear() { Memory.clear(); ev('mem.clear'); Store.save(); toast(t('memClearDone')); sheetMem(); },
+    setMinor(el) { S.agent.minor = el.dataset.x === '1'; ev('minor', { on: S.agent.minor }); Store.save(); render(); sheetSettings(false); },
+    privOpen() { sheetPriv(); }, importOpen() { sheetPriv('import'); }, deleteOpen() { sheetPriv('delete'); },
+    importGo() {
+      let o = null; try { o = JSON.parse($('imp-box').value.trim()); } catch (e) { o = null; }
+      if (!o || o.v !== 2 || !Array.isArray(o.logs) || !Array.isArray(o.habitat)) { $('imp-err').textContent = t('privImportBad'); return; }
+      adopt(o); S.savedAt = 0; Store.save(); ui.thread = []; ui.from = 0; ui.step = 'idle'; ui.draft = null; ui.greetedFor = ''; ev('import'); closeSheet(); Nudge.sync().catch(() => {}); render(); toast(t('privImportDone'));
+    },
+    async deleteGo() {
+      await Platform.notify.cancel([1001, 1002, 1003, 1004, Tools.TIMER_ID]);
+      for (const k of ['yangyizhi.llm.v1', 'yangyizhi.trace.v1', 'yangyizhi.config.v1']) window.Agent.LS.del(k);
+      Platform.resetDeviceId(); AI.use(null);
+      S = P.create(); adopt(S); ui.draft = null; ui.thread = []; ui.from = 0; ui.step = 'idle'; ui.busy = false; ui.greetedFor = ''; ui.woke = false; Store.save(); closeSheet(); location.hash = 'pet'; render(); toast(t('privDeleted'));
+    },
+    diagOpen() { sheetDiag(); },
+    async diagExport() { const txt = JSON.stringify({ config: Config.src, traces: Trace.list(), events: (S.events || []).slice(-300) }); try { await navigator.clipboard.writeText(txt); $('btn-diag').textContent = t('setCopied'); } catch (e) { const b = $('diag-box'); b.hidden = false; b.value = txt; b.select(); } },
+    fbGo(el) { const m = ui.thread[+el.dataset.i]; if (m && m.tr) Trace.feedback(m.tr, el.dataset.x, m.text); ev('feedback', { r: el.dataset.x }); Store.save(); closeSheet(); toast(t('fbThanks')); },
+    crisisHelp() { sheetCrisis(); },
+    async timerStart(el) { const m = el && ui.thread[+el.dataset.i]; if (m) m.acts = null; if (!S.goal || Tools.timer()) return; await Tools.startTimer(10); ui.step = 'idle'; Store.save(); Sfx.sparkle(); renderTalk(); window.scrollTo({ top: 0, behavior: 'smooth' }); },
+    timerDone() { timerEnd(false); },
+    async timerStop() { await Tools.stopTimer(false); push('pet', t('timerStopped')); Store.save(); renderTalk(); },
+    async calAdd(el) { const g = S.goal; if (!g || !g.promise.text) return; const hs = goalLogs(g).slice(-10).map(l => new Date(l.at).getHours()).sort((a, b) => a - b); try { const r = await Tools.calendar(g, hs.length ? hs[Math.floor(hs.length / 2)] : 20); Store.save(); toast(t(r === 'native' ? 'calDone' : 'calIcs')); } catch (e) { toast(esc(e && e.message || '')); } },
     obEx(el) { const d = ui.draft; d.title = el.dataset.x; d.kind = guessKind(d.title); $('ob-title').value = d.title; $('egg').innerHTML = C.egg(d.hue, d.kind, 0); $('ob-title').focus(); },
     obBack() { const d = ui.draft; d.step = 1; d.miles = null; d.err = ''; d.edit = false; render(); },
     obEdit() { const d = ui.draft; d.edit = !d.edit; if (!d.edit) d.miles = d.miles.filter(m => m.name.trim()); if (d.miles.length < 2) { d.edit = true; } render(); },
@@ -565,15 +719,20 @@
     skipAnswer() { toPromise(); },
     pickSuggest() { finishPromise(ui.suggest, true); },
     keepPromise() { finishPromise(S.goal.promise.text, true); },
-    skipPromise() { const keep = ui.thread.length; push('pet', say('noPromise')); ui.step = 'idle'; ui.promiseLog = null; ui.from = keep; ui.shown = keep; renderTalk(); window.scrollTo({ top: 0, behavior: 'smooth' }); },
+    skipPromise() { const keep = ui.thread.length; push('pet', say('noPromise')); ui.step = 'idle'; ui.promiseLog = null; ui.from = keep; ui.shown = keep; renderTalk(); window.scrollTo({ top: 0, behavior: 'smooth' }); afterRound(S.goal); },
     editPromise() { if (ui.busy) return; ui.step = 'editPromise'; renderTalk('pm-text'); },
     pickPromise(el) { const m = ui.thread[+el.dataset.i]; if (m) m.acts = null; finishPromise(el.dataset.x, false); },
     stuck() { if (!ui.busy) actStuck(); },
-    chat() { fresh(); ui.step = 'chat'; renderTalk('ch-text'); },
+    chat() {
+      fresh(); const lim = Config.get('limits') || {}, d = Guard.dependence(S.events, now(), x => P.dayKey(x, tz()), lim);
+      if (d.overDaily) { push('pet', t('depDaily')); ui.step = 'idle'; renderTalk(); return; }
+      if (d.chatOnly && S.agent.depDay !== dayNow()) { S.agent.depDay = dayNow(); push('pet', t('depChatOnly')); }
+      ui.step = 'chat'; renderTalk('ch-text');
+    },
     welcomeAI(el) { actWelcomeAI(el); },
     route() { sheetRoute(); }, moltGo() { actMoltGo(); }, treasure() { sheetTreasure(); }, buddy(el) { sheetBuddy(+el.dataset.i); },
     release() { sheetRelease(); },
-    releaseGo() { const name = S.goal.name; P.release(S, now(), $('rl-reason').value.trim()); Store.save(); closeSheet(); ui.thread = []; ui.from = 0; ui.step = 'idle'; ui.draft = null; ui.greetedFor = ''; Sfx.sleep(); render(); toast(t('rlToast', { name })); },
+    releaseGo() { const name = S.goal.name; P.release(S, now(), $('rl-reason').value.trim()); ev('release'); const a = S.habitat[S.habitat.length - 1]; if (a) Memory.updateUser(a).then(ok => { if (ok) Store.save(); }); Store.save(); Nudge.sync().catch(() => {}); closeSheet(); ui.thread = []; ui.from = 0; ui.step = 'idle'; ui.draft = null; ui.greetedFor = ''; Sfx.sleep(); render(); toast(t('rlToast', { name })); },
     setStyle(el) { S.goal.style = el.dataset.x; Store.save(); for (const c of document.querySelectorAll('[data-act="setStyle"]')) c.setAttribute('aria-pressed', String(c.dataset.x === S.goal.style)); Sfx.blip(voiceOf(S.goal), S.goal.style); },
     setSound(el) { S.mute = el.dataset.x !== '1'; Sfx.on = !S.mute; Store.save(); for (const c of document.querySelectorAll('[data-act="setSound"]')) c.setAttribute('aria-pressed', String((c.dataset.x === '1') === !S.mute)); if (!S.mute) Sfx.sparkle(); },
     skip(el) { S.offset = (S.offset || 0) + (+el.dataset.d) * DAY; Store.save(); closeSheet(); ui.thread = []; ui.from = 0; ui.step = 'idle'; ui.busy = false; ui.woke = false; ui.mood = ''; ui.greetedFor = ''; ui.newItems = 0; ui.chat = []; ui.chatN = 0; if (route() !== 'pet') location.hash = 'pet'; else render(); window.scrollTo({ top: 0 }); },
@@ -590,6 +749,12 @@
     if (ev.target.id === 'sheet') closeSheet(); else if (typing.length && ev.target.closest('#thread')) finishTyping();
   });
   document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && sheetOpen()) closeSheet(); });
+  // 长按它的一句话（电脑上右键）：标记「这句话不太对」
+  let pressT = 0;
+  const pressEnd = () => clearTimeout(pressT);
+  document.addEventListener('pointerdown', e => { const m = e.target.closest && e.target.closest('.msg.pet[data-tr]'); if (!m) return; pressT = setTimeout(() => { finishTyping(); sheetFeedback(+m.dataset.ti); }, 650); }, { passive: true });
+  for (const n of ['pointerup', 'pointercancel', 'pointerleave', 'scroll']) document.addEventListener(n, pressEnd, { passive: true, capture: true });
+  document.addEventListener('contextmenu', e => { const m = e.target.closest && e.target.closest('.msg.pet[data-tr]'); if (!m) return; e.preventDefault(); sheetFeedback(+m.dataset.ti); });
   document.addEventListener('input', ev => {
     const el = ev.target, d = ui.draft; if (!d) return;
     if (el.dataset.bind) { d[el.dataset.bind] = el.value; if (el.dataset.bind === 'title') { const k = guessKind(el.value); if (k !== d.kind) { d.kind = k; $('egg').innerHTML = C.egg(d.hue, d.kind, 0); } } }
@@ -603,7 +768,11 @@
   window.addEventListener('hashchange', () => { closeSheet(); render(); window.scrollTo({ top: 0 }); });
 
   /* ---------- 启动 ---------- */
-  function adopt(o) { S = Object.assign(P.create(), o); S.logs = S.logs || []; S.habitat = S.habitat || []; S.tips = S.tips || {}; Sfx.on = !S.mute; }
+  function adopt(o) {
+    S = Object.assign(P.create(), o); S.logs = S.logs || []; S.habitat = S.habitat || []; S.tips = S.tips || {}; Sfx.on = !S.mute;
+    Events.migrate(S); S.mem = S.mem || { goals: {}, user: null }; S.agent = Object.assign({ minor: false, usage: {} }, S.agent || {});
+  }
+  adopt(S);
   const local = Store.loadLocal(); if (local && local.v === 2) { adopt(local); Store.kind = 'local'; }
   else { try { localStorage.setItem(KEY + '.t', '1'); localStorage.removeItem(KEY + '.t'); Store.kind = 'local'; } catch (e) { Store.kind = 'none'; } }
   ui.looking = !local && !!(window.claude && window.claude.use);
@@ -615,6 +784,19 @@
     else { if (Store.ref && S.rev > 0) { Store.pending = true; Store.flush(); } if (was && !S.goal) render(); }
   });
   AI.init();
+  Config.load().then(() => { AI.sync(); if (route() === 'pet' && S.goal && !sheetOpen() && ui.step === 'idle' && !ui.busy) renderTalk(); });
+  // 打开和回到前台：记一次「打开」、把已发出的提醒记账并重排、补做一次记忆整理
+  const wake = () => { Nudge.onOpen().catch(() => {}); Memory.sleepTime().then(ok => { if (ok) Store.save(); }).catch(() => {}); Store.saveLocal(); if (Tools.timer() && Tools.left() <= 0) timerEnd(true); };
+  wake(); Platform.onResume(wake);
+  Platform.notify.onTap(x => { ev('nudge.open', { kind: x.kind }); Store.save(); if (x.kind === 'timer') { if (Tools.timer()) timerEnd(true); return; } location.hash = 'pet'; closeSheet(); render(); if (S.goal && ui.step === 'idle' && !minorNight()) { ui.woke = true; acts.report(); } });
+  // 使用时长：前台每 15 秒记一次；超过阈值提醒一次（未成年人模式阈值更低）
+  setInterval(() => {
+    if (document.visibilityState !== 'visible' || !S.agent) return;
+    const d = dayNow(), u = S.agent.usage = S.agent.usage || {}; for (const k in u) if (+k < d - 7) delete u[k];
+    u[d] = (u[d] || 0) + 15; const lim = Config.get('limits') || {}, mins = (S.agent.minor ? lim.minorMinutes : lim.useMinutes) || 60;
+    if (u[d] >= mins * 60 && S.agent.useTold !== d) { S.agent.useTold = d; toast(t('useLong').replace('一个小时', mins >= 60 ? '一个小时' : mins + ' 分钟')); }
+    if (u[d] % 60 === 0) Store.saveLocal();
+  }, 15000);
   setInterval(tickLive, 1000);
-  window.__app = { get S() { return S; }, AI, Store, render, ui };   // 调试用
+  window.__app = { get S() { return S; }, AI, Store, render, ui, Agent: window.Agent };   // 调试用
 })();

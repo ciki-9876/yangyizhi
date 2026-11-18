@@ -1,0 +1,66 @@
+name: Agent tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rules-and-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: 规则模拟（成长数值、提醒节奏）
+        run: npm run test:agent
+      - name: 构建网页
+        run: python3 src/build.py
+      - name: 安装浏览器
+        run: pip install playwright && python -m playwright install --with-deps chromium
+      - name: 端到端（原有流程、外部模型、Agent 基建）
+        working-directory: tests
+        run: |
+          mkdir -p shots
+          python3 mock_llm.py 8765 & python3 mock_llm.py 8766 --nocors &
+          sleep 1
+          python3 e2e.py
+          python3 e2e.py --nomock
+          python3 e2e_llm.py
+          python3 e2e_agent.py
+
+  # 红线评测：改了提示词或运行时就跑；需要在仓库 Secrets 里配置 EVAL_BASE / EVAL_KEY / EVAL_MODEL
+  redline-eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: 判断是否需要跑
+        id: need
+        env:
+          EVAL_KEY: ${{ secrets.EVAL_KEY }}
+        run: |
+          if [ -z "$EVAL_KEY" ]; then echo "run=no" >> "$GITHUB_OUTPUT"; echo "没有配置 EVAL_KEY，跳过"; exit 0; fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || git diff --name-only HEAD~1 HEAD | grep -qE '^src/(strings\.js|llm\.js|agent/)'; then echo "run=yes" >> "$GITHUB_OUTPUT"; else echo "run=no" >> "$GITHUB_OUTPUT"; fi
+      - name: 红线评测（低于 evals/baseline.json 则失败）
+        if: steps.need.outputs.run == 'yes'
+        env:
+          EVAL_BASE: ${{ secrets.EVAL_BASE }}
+          EVAL_KEY: ${{ secrets.EVAL_KEY }}
+          EVAL_MODEL: ${{ secrets.EVAL_MODEL }}
+        run: node evals/redline.mjs
