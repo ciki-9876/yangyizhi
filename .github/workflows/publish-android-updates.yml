@@ -1,0 +1,131 @@
+name: Publish signed Android update feed
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_notes:
+        description: Release notes shown in the app
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build-sign-deploy:
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v4
+        with:
+          accept-android-sdk-licenses: false
+          packages: ''
+      - name: Install required Android SDK packages
+        run: |
+          mkdir -p "$ANDROID_HOME/licenses"
+          install -m 644 clients/android/licenses/android-sdk-license "$ANDROID_HOME/licenses/android-sdk-license"
+          sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
+      - name: Require release signing secrets
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          UPDATE_PRIVATE_KEY_PEM: ${{ secrets.UPDATE_PRIVATE_KEY_PEM }}
+          UPDATE_KEY_PASSPHRASE: ${{ secrets.UPDATE_KEY_PASSPHRASE }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64" && test -n "$ANDROID_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_ALIAS" && test -n "$ANDROID_KEY_PASSWORD"
+          test -n "$UPDATE_PRIVATE_KEY_PEM" && test -n "$UPDATE_KEY_PASSPHRASE"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/yangyizhi-release.jks"
+          printf '%s\n' "$UPDATE_PRIVATE_KEY_PEM" > "$RUNNER_TEMP/update-private.pem"
+          chmod 600 "$RUNNER_TEMP/yangyizhi-release.jks" "$RUNNER_TEMP/update-private.pem"
+          {
+            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/yangyizhi-release.jks"
+            echo "UPDATE_PRIVATE_KEY_PATH=$RUNNER_TEMP/update-private.pem"
+          } >> "$GITHUB_ENV"
+      - run: npm ci
+      - run: npm run android:sync
+      - run: python3 scripts/archive-web.py
+      - name: Build and verify release APK
+        id: apk
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          clients/android/gradlew --no-daemon -p clients/android assembleRelease bundleRelease
+          apk=clients/android/app/build/outputs/apk/release/app-release.apk
+          test -s "$apk"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk" | grep -q "package: name='app.yangyizhi.mobile'"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose "$apk"
+          cert=$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$apk" | awk -F': ' '/Signer #1 certificate SHA-256 digest:/{gsub(":", "", $2); print tolower($2); exit}')
+          test "${#cert}" -eq 64
+          echo "cert_sha256=$cert" >> "$GITHUB_OUTPUT"
+          version=$(node -p "require('./clients/versions.json').android.version")
+          mkdir -p artifacts/release-input artifacts/store-bundle
+          cp "$apk" "artifacts/release-input/Yangyizhi-${version}-android.apk"
+          cp clients/android/app/build/outputs/bundle/release/app-release.aab "artifacts/store-bundle/Yangyizhi-${version}-android.aab"
+      - name: Add versioned web package
+        run: cp artifacts/web/web.zip artifacts/release-input/web.zip
+      - name: Restore and verify previous update assets
+        run: node scripts/fetch-update-feed.mjs --url https://ciki-9876.github.io/yangyizhi/updates/stable.json --out artifacts/previous-updates
+      - name: Create signed feed and Pages tree
+        env:
+          ANDROID_CERT_SHA256: ${{ steps.apk.outputs.cert_sha256 }}
+          UPDATE_KEY_PASSPHRASE: ${{ secrets.UPDATE_KEY_PASSPHRASE }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+        run: |
+          printf '%s\n' "$RELEASE_NOTES" > "$RUNNER_TEMP/release-notes.md"
+          args=(--assets artifacts/release-input --out artifacts/next-updates/stable.json --baseUrl https://ciki-9876.github.io/yangyizhi/updates/ --notes "$RUNNER_TEMP/release-notes.md" --privateKey "$UPDATE_PRIVATE_KEY_PATH")
+          if [ -f artifacts/previous-updates/stable.json ]; then
+            args+=(--previous artifacts/previous-updates/stable.json)
+          fi
+          node scripts/release-manifest.mjs "${args[@]}"
+          node scripts/prepare-deploy.mjs --web dist --updates artifacts/next-updates --out artifacts/pages-release
+          mkdir -p artifacts/pages-release/site/updates
+          cp -R artifacts/pages-release/updates/. artifacts/pages-release/site/updates/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: artifacts/pages-release/site
+      - name: Deploy update feed
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Check deployed manifest
+        run: |
+          curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 2 \
+            https://ciki-9876.github.io/yangyizhi/updates/stable.json -o "$RUNNER_TEMP/deployed-stable.json"
+          cmp artifacts/next-updates/stable.json "$RUNNER_TEMP/deployed-stable.json"
+          curl --fail --silent --show-error https://ciki-9876.github.io/yangyizhi/healthz | grep -qx ok
+      - name: Remove signing material
+        if: always()
+        run: rm -f "$RUNNER_TEMP/yangyizhi-release.jks" "$RUNNER_TEMP/update-private.pem"
+      - name: Keep verified store bundle for review
+        uses: actions/upload-artifact@v6
+        with:
+          name: yangyizhi-android-store-${{ github.sha }}
+          path: artifacts/store-bundle/*.aab
+          retention-days: 5

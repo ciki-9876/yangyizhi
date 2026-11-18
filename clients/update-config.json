@@ -1,0 +1,6 @@
+{
+  "protocol": 1,
+  "manifestUrl": "https://ciki-9876.github.io/yangyizhi/updates/stable.json",
+  "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAtXauhTTVBwN5WwVgBZQr\nDSXRIkuDw5xu6fBsI1IB/HOSluROm1fsFrkJt5Owh7Ltdo3KvpKDWc3gcREiLB2N\ntN515/+KAtkloYHlw1M1XLsFb7CtlXlnCg5auuZnjz0kr806foUC7J9NPIaRJl0d\nlyMQGJiYZtnBBMAFaLXuKvE5Nqv1ZCzri0GAw2vThRxJjf0VBbDVtxn+spxw6uVp\ns1kOsaSw03FrXZSspuvnPyctDnH+q65WwqOr85GGH2xWX8jg1NWLO+4VwG7MBqJW\nN1M0fHc7DXakb0W8j0Ah2j6ai60iNf92cNqHe/r2TXBSqZZAxxBg5iEKNXeT4RyI\nmmtse3OMEAHV+pdQbMei9lqerHfQh0/l5YIHDZKa7IhmZMFp4svO3dyL9eJtR3PQ\nuLu+D/XcRIUvQUmz1Kc2wEtUq9V+KgpcItKeXMeKMeiCtFJHm00rk/NrwWi5VIg2\njBkgB/7rz4nGmyj7bBh2YKpsCSFjv7STqQ9/wREFwGL/AgMBAAE=\n-----END PUBLIC KEY-----",
+  "applicationId": "app.yangyizhi.mobile"
+}

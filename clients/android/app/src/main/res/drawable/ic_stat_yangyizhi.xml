@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 通知栏小图标：一颗蛋（必须是单色白色，系统会着色） -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M12,2C8.2,2 5,8.1 5,13.2C5,18.1 8.1,22 12,22C15.9,22 19,18.1 19,13.2C19,8.1 15.8,2 12,2ZM9.5,12.5A1.2,1.2 0,1 1,9.5 14.9A1.2,1.2 0,1 1,9.5 12.5ZM14.5,12.5A1.2,1.2 0,1 1,14.5 14.9A1.2,1.2 0,1 1,14.5 12.5Z"/>
+</vector>

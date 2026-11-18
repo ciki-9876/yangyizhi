@@ -94,10 +94,55 @@
     setTitle: '设置', setVoice: '它怎么说话', setSound: '声音', setOn: '开', setOff: '关',
     setTime: '试玩工具', setTimeHint: '把时间往后拨，体验「离开几天再回来」。拨了回不去。', setTimeBtn: '过 {d} 天',
     setAbout: '关于', setSaveCloud: '进度已存到你的 Claude 账号。', setSaveLocal: '进度只存在这台设备上。', setSaveNone: '这里存不了进度，关掉页面就没了。',
-    setAIOn: '它说的话由 Claude 根据你的日记现写。', setAIOff: '这里连不上 Claude，它会用预先写好的台词。',
+    setBrain: '它的脑子', setAIOn: '它说的话由 {who} 根据你的日记现写。', setAIOff: '现在没接大模型，它会用预先写好的台词，也不能自由聊天。',
+    obLLM: '有大模型 API 密钥？接上后它会帮你拆关、陪你聊', llmConnect: '接入大模型', llmChange: '更换大模型',
+    llmTitle: '接入大模型', llmLead: '填上你自己的 API 密钥，它就能读你的日记、现编台词、陪你聊。密钥只存在这台设备上，只发给下面这个地址。',
+    llmProvider: '服务商', llmNoDirect: '这家通常不允许网页直接调用。测试连不上的话，要先部署一个代理（见仓库 proxy/），再选「自建代理」。',
+    llmBase: '接口地址', llmBaseHint: '你的代理地址，或任何 OpenAI 兼容接口，一般以 /v1 结尾。', llmKey: 'API 密钥', llmKeyOpt: '代理不需要可以留空', llmKeyHint: '只存在这台设备的浏览器里，「复制存档」不会带上它。',
+    llmModel: '模型', llmModelPh: '模型名，见服务商文档', llmModelHint: '模型名以服务商文档为准：{url}', llmQuick: '快速模型（可不填）', llmQuickPh: '用于短回复，不填就用上面那个',
+    llmProto: '接口协议', llmProtoOpenAI: 'OpenAI 兼容', llmProtoAnthropic: 'Anthropic',
+    llmTest: '测试连接', llmSave: '测试并启用', llmTesting: '正在连……', llmOk: '连上了，{ms} 毫秒。', llmSaved: '已启用 {who}，{ms} 毫秒。之后它说的话由这个模型现写。',
+    llmOff: '断开，改回预写台词', llmOffDone: '已断开外部模型',
+    llmNeedBase: '接口地址要以 http:// 或 https:// 开头。', llmMixed: '这个页面是 https，浏览器不允许它调用 http 地址。换成 https 的地址。', llmNeedModel: '还没填模型名。', llmNeedKey: '还没填 API 密钥。',
+    llmEAuth: '密钥不对，或者没有这个模型的权限。', llmENotFound: '地址或模型名不对。', llmERate: '请求太勤了，过一会儿再试。', llmEQuota: '账户余额或额度不够。',
+    llmENetwork: '连不上。多半是这家不允许网页直连（跨域被拦），需要走代理；也可能是地址写错或网络不通。', llmETimeout: '等了太久没回。', llmEUpstream: '服务商那边出错了，过会儿再试。', llmERefused: '模型拒绝回答这段内容。', llmEOther: '没连上。',
     setExport: '复制存档', setCopied: '已复制', setReset: '清空重来', setResetLead: '会删掉全部伙伴和日记。', setResetGo: '确定清空',
-    err: { rate_limited: 'Claude 现在用得太勤，过一会儿再试。', refused: '这段内容 Claude 处理不了，换个说法试试。', session_expired: '登录过期了，重新登录后再试。',
-      invalid_json: 'Claude 这次没按格式回，再试一次。', off: '这里连不上 Claude，先用预先写好的台词。', other: '没连上 Claude。可以再试一次。' },
+    // —— Agent 基建（M1–M7） ——
+    memLabels: { progress: '做到哪了', stuck: '反复卡住的地方', rhythm: '你的节奏', promises: '说过的承诺', habits: '你通常怎么做事', returns: '断了之后怎么回来', likes: '你愿意答的追问' },
+    memRule: { progress: '上次：', promises: '约好：' },
+    memTitle: '它记得', memLead: '这些是它记得的事，跟你聊的时候会用上。不对的可以直接改；清空一栏，它就不会再写回去。', memGoalHead: '关于「{title}」', memUserHead: '关于你',
+    memEmpty: '还没记下什么。讲几次之后，这里会出现它记得的事。', memSave: '保存', memSaved: '改好了', memClear: '全部忘掉', memClearDone: '它把记得的事都忘了', memSrc: { model: '由模型整理', rule: '按日记自动记下' },
+    setMem: '它记得的事', setMemBtn: '看看它记得什么',
+    setNudge: '提醒', setNudgeLead: '它会在约定的第二天、或者快睡着时来找你一下。你一直不理，它最多来 4 次就不来了。',
+    setNudgeWeb: '提醒要在手机 App 里才能用。', setNudgeDenied: '系统没给通知权限。到手机设置里打开通知后，再回来开启。',
+    setQuiet: '这段时间不打扰', quietOpts: [[[22, 9], '22 点到 9 点'], [[23, 8], '23 点到 8 点'], [[0, 0], '不限']], setDueOnly: '只在约定到期时提醒',
+    setNudgeNext: '下一次：{when}', setNudgeNone: '目前没有排好的提醒。',
+    nudgeAsk: '要不要到时候我来提醒你一下？最多一天一次，你不理我就不来了。', nudgeYes: '好，提醒我', nudgeNo: '不用', nudgeOn: '好，到时候叫你。', nudgeOff: '行，你自己来。',
+    nudgeChannel: '它来找你', nudgeChannelDesc: '约定到期、它快睡着时的提醒', nudgeNoPromise: '随便做一点',
+    nudgeTpl: {
+      quiet: { due: '{promise}。就这个。', drowsy: '快睡了。{promise}，十分钟。', sleep: '睡了。回来从「{promise}」开始。' },
+      curious: { due: '今天做「{promise}」吗？做完讲给我听。', drowsy: '我有点困了。要不先做十分钟「{promise}」？', sleep: '{name}在睡觉。哪天想起来，从「{promise}」开始就行。' },
+      sharp: { due: '约好的「{promise}」，今天是个好日子。', drowsy: '再不动我就睡了。「{promise}」，十分钟。', sleep: '我睡了。醒来那天，从「{promise}」开始。' },
+    },
+    toolTimer: '陪你做 10 分钟', toolCal: '加进日历', timerLabel: '一起做', timerDone: '做完了', timerStop: '先停下', timerHint: '它在旁边安静待着。可以锁屏，到点会叫你。',
+    timerEnd: '十分钟到。做到哪了？', timerStopped: '停了也行。做了几分钟也算。', timerDoneNote: '十分钟到了。做到哪了？', calNotes: '「{title}」的下一小步。做完回来讲给它听。', calDone: '已经交给系统日历了', calIcs: '日历文件已下载，打开它就能加进日历',
+    crisisTitle: '先照顾好自己', crisisBody: '我只是陪你做事的小伙伴，这件事我帮不上忙。但有人能帮你，而且现在就可以。',
+    crisisLines: [['全国心理援助热线', '12356'], ['有生命危险时', '110 / 120']], crisisOther: '如果你不在中国大陆，请拨打当地的紧急电话或心理援助热线。也可以先找一个信得过的人，告诉他你现在的感受。', crisisOk: '我知道了',
+    crisisLow: '听起来你最近很不容易。这件事可以先放一放，不急。愿意的话，找个信得过的人说说，或者打心理援助热线 12356。', crisisHelp: '求助方式',
+    depDaily: '今天我们聊得够多了。剩下的时间留给那件事，或者留给身边的人吧。明天再聊。', depChatOnly: '这几天我们光聊天了。聊天我在，不过比起跟我说，做一小步会更有用。',
+    useLong: '今天已经在这待了一个小时了。去做那件事，或者歇一会儿吧。',
+    minorTitle: '未成年人模式', minorLead: '开启后：不能自由聊天；22 点到 6 点它睡觉；每天待满 40 分钟会提醒你休息。', minorNight: '这么晚了，它先睡了。明天早上见。',
+    fbTitle: '这句话不太对？', fbLead: '告诉我哪里不对，会用来改进它说话的方式。会附上这一句的内容，不会附上你的日记。', fbReasons: [['made_up', '编了没发生的事'], ['tone', '语气不对'], ['useless', '没用、太空'], ['uncomfortable', '让我不舒服'], ['other', '其他']], fbThanks: '收到，谢谢。',
+    privTitle: '隐私与数据', privLead: '日记和伙伴存在这台设备上。接了模型时，你讲的话会发给它的服务方来生成回应。提醒在手机上本地排程，不经过服务器。',
+    privImport: '导入存档', privImportLead: '把之前「复制存档」得到的文字贴进来。会替换掉现在的全部进度。', privImportGo: '导入并替换', privImportBad: '这段文字不是有效的存档。', privImportDone: '导入好了',
+    privDelete: '删除全部数据', privDeleteLead: '会删掉伙伴、日记、它记得的事、模型密钥、提醒和诊断记录，无法恢复。', privDeleteGo: '确定删除', privDeleted: '已经全部删除',
+    diagTitle: '诊断信息', diagLead: '最近 7 天，只在这台设备上统计。', diagCalls: '模型调用 {n} 次，成功 {ok}%，平均 {ms} 毫秒', diagRetry: '重试 {r} 次，退回预写台词 {f} 次', diagGuard: '红线拦下：{list}', diagGuardNone: '红线没有拦下任何回复',
+    diagNudge: '提醒发出 {s} 条，点开 {o} 条', diagActive: '7 天里来了 {d} 天', diagFb: '你标记了 {n} 句不太对', diagExport: '导出诊断记录', diagSrc: '配置来源：{src}', guardNames: { clingy: '黏人', suffer: '装可怜', guard: '内疚', guilt: '让人内疚', flatter: '吹捧', long: '太长' },
+    filing: '模型：{x}',
+    upNotSet: '更新服务还没有配置。当前版本可以正常使用。',
+    err: { rate_limited: '{who} 现在用得太勤，过一会儿再试。', refused: '这段内容 {who} 处理不了，换个说法试试。', session_expired: '登录过期了，重新登录后再试。',
+      invalid_json: '{who} 这次没按格式回，再试一次。', off: '这里连不上 Claude，先用预先写好的台词。', auth: '{who} 的密钥失效了，到设置里检查一下。', quota: '{who} 的额度用完了。',
+      network: '没连上 {who}，检查一下网络。', timeout: '{who} 回得太慢，再试一次。', other: '没连上 {who}。可以再试一次。' },
   };
 
   /* 提示词：模型每次调用都没有记忆，所以人设、数据、格式都写在这一段里。 */
@@ -111,6 +156,7 @@
 - 说实话：主人做得少就照实说少，不吹捧，也不责备、不让主人内疚。
 - 你不会饿、不会难过、不会孤单。不说想念主人、离不开主人，不扮演恋人或唯一的朋友。主人去陪别人或休息，你觉得挺好。
 - 主人认真问你是不是 AI 时，照实说你是由 AI 驱动的小伙伴。`;
+  const memBlock = mem => mem ? `\n你记得的事（主人能看到并修改，以这里为准）：\n${mem}\n` : '';
   const logLines = logs => logs.map(l => `- ${l.date}：${clip(l.text, 200)}${l.a ? `（你问：${clip(l.q, 60)} 主人答：${clip(l.a, 200)}）` : ''}${l.next ? ` 约好：${clip(l.next, 80)}` : ''}`).join('\n') || '（还没有记录）';
   const P = {
     plan: ({ title }) => `你在帮一个人把大目标拆小。这个人容易中途放弃，所以每一步都要具体、可判断。
@@ -123,8 +169,8 @@
 
 只回复 JSON：{"kind":"","milestones":[{"name":"","doneWhen":""}],"firstStep":""}`,
 
-    react: ({ g, mile, text, logs }) => `${who(g)}
-
+    react: ({ g, mile, text, logs, mem }) => `${who(g)}
+${memBlock(mem)}
 当前阶段：「${clip(mile, 40)}」
 之前的记录（从旧到新）：
 ${logLines(logs)}
@@ -137,8 +183,8 @@ ${logLines(logs)}
 - next：你建议的下一小步，接着他这次做的往下走，20 分钟内能做完的一个具体动作，不超过 18 个字。不用人设口吻，只写动作本身。
 只回复 JSON：{"say":"","ask":"","next":""}`,
 
-    welcome: ({ g, mile, gap, logs }) => `${who(g)}
-
+    welcome: ({ g, mile, gap, logs, mem }) => `${who(g)}
+${memBlock(mem)}
 主人有 ${gap} 天没来了，今天回来了。你刚睡醒。帮他在一分钟内接上。
 当前阶段：「${clip(mile, 40)}」
 你们约好的下一小步：${g.promise.text ? clip(g.promise.text, 200) : '（没约）'}
@@ -151,8 +197,8 @@ ${logLines(logs)}
 第三句：今天最小的一步。以约好的下一小步为准；如果它明显超过 20 分钟，就切成其中最前面的一小块。
 不要责备，不要提他离开了多久，不要说欢迎回来。总共不超过 100 个字。只回复这三句。`,
 
-    shrink: ({ g }) => `一个人在做「${clip(g.title, 80)}」，他约好的下一小步是：「${clip(g.promise.text, 200)}」。他今天不想动。
-
+    shrink: ({ g, mem }) => `一个人在做「${clip(g.title, 80)}」，他约好的下一小步是：「${clip(g.promise.text, 200)}」。他今天不想动。
+${memBlock(mem)}
 给出 3 个更小的版本，每个都是十分钟内能做完的一个具体动作，而且做完确实是在推进原来那一步。每个不超过 18 个字。
 只回复 JSON 数组：["","",""]`,
 
@@ -164,8 +210,47 @@ ${logLines(logs)}
 
 写 2 到 3 句话，不超过 90 个字。只用日记里有的事实：具体做了什么、绕过什么弯、留下了什么判断。做得少就说少，不拔高，不用「恭喜」「太棒了」，不编日记里没有的细节。用第二人称「你」。只回复正文。`,
 
-    chatRules: ({ g, mile, logs }) => `${who(g)}
+    memGoal: ({ g, cur, logs, forgot, edited }) => `你在帮一只陪伴小生物整理它对主人的记忆。主人在做「${clip(g.title, 80)}」。
+现有档案：
+- progress（做到哪了）：${clip(cur && cur.progress, 90) || '（空）'}
+- stuck（反复卡住的地方）：${clip(cur && cur.stuck, 90) || '（空）'}
+- rhythm（主人的节奏，比如什么时候做、一次做多久）：${clip(cur && cur.rhythm, 60) || '（空）'}
+- promises（说过、还没兑现的承诺）：${clip(cur && cur.promises, 60) || '（空）'}
+${Object.keys(edited || {}).filter(k => edited[k]).length ? `主人亲手改过这些字段，原样保留：${Object.keys(edited).filter(k => edited[k]).join('、')}\n` : ''}${(forgot || []).length ? `主人删掉了下面这些内容，不要再写回任何一条：\n${forgot.map(f => '- ' + clip(f, 80)).join('\n')}\n` : ''}
+最近的日记（从旧到新）：
+${logLines(logs)}
 
+根据日记更新档案。规则：
+- 只记和这件事有关的事实。不记健康、感情、家人、钱、身份等私人信息，日记里提到了也不记。
+- 只写日记里能看出来的，不推测，不评价，不写建议。
+- progress 不超过 40 个字，stuck 不超过 40 个字（看不出来就留空），rhythm 不超过 30 个字（至少有 3 条日记才写），promises 不超过 30 个字。
+只回复 JSON：{"progress":"","stuck":"","rhythm":"","promises":""}`,
+
+    memUser: ({ cur, goal, profile, forgot, edited }) => `你在帮一只陪伴小生物整理它对主人这个人的长期印象，用来以后陪主人做别的事。
+现有印象：
+- habits（通常怎么做事）：${clip(cur && cur.habits, 70) || '（空）'}
+- returns（断了之后怎么回来）：${clip(cur && cur.returns, 70) || '（空）'}
+- likes（愿意回答哪类追问）：${clip(cur && cur.likes, 70) || '（空）'}
+${Object.keys(edited || {}).filter(k => edited[k]).length ? `主人亲手改过这些，原样保留：${Object.keys(edited).filter(k => edited[k]).join('、')}\n` : ''}${(forgot || []).length ? `主人删掉的内容，不要写回：\n${forgot.map(f => '- ' + clip(f, 80)).join('\n')}\n` : ''}
+刚结束的一件事：「${clip(goal.title, 80)}」，结果：${goal.result === 'grown' ? '做完了' : '放下了'}，历时 ${goal.days} 天，讲述 ${goal.adv} 次。
+这件事的档案：${profile ? Object.values(profile).filter(v => typeof v === 'string' && v).map(v => clip(v, 90)).join('；') : '（无）'}
+
+在现有印象上增补或修正，每项不超过 35 个字；看不出来的留原样。不记私人信息，不评价人。
+只回复 JSON：{"habits":"","returns":"","likes":""}`,
+
+    nudge: ({ g, mem }) => `${who(g)}
+${memBlock(mem)}
+你们约好的下一小步：${g.promise.text ? clip(g.promise.text, 120) : '（没约）'}
+
+主人不在的时候，你会用手机通知去找他一下。写三条通知，每条不超过 22 个字：
+- due：约定的第二天，提醒他做那一小步。
+- drowsy：你快睡着了（他两天没来），建议他做十分钟。
+- sleep：你已经睡了，告诉他哪天回来从哪一步开始就行。
+规则：只说一个具体动作；不说想他、等他；不提他多久没来；不说「加油」；不用感叹号。
+只回复 JSON：{"due":"","drowsy":"","sleep":""}`,
+
+    chatRules: ({ g, mile, logs, mem }) => `${who(g)}
+${memBlock(mem)}
 当前阶段：「${clip(mile, 40)}」
 你们约好的下一小步：${g.promise.text ? clip(g.promise.text, 200) : '（没约）'}
 最近的记录（从旧到新）：

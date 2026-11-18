@@ -1,0 +1,200 @@
+name: Web and client builds
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Build target
+        type: choice
+        default: all
+        options: [all, windows, android, macos, web]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: clients-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    if: github.event.inputs.platform == '' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'web'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - run: npm test
+      - run: npm run build:web
+      - run: node scripts/set-desktop-version.mjs windows
+      - run: npm run check:versions
+      - run: node --check scripts/release-manifest.mjs && node --check scripts/fetch-update-feed.mjs
+      - run: python scripts/archive-web.py
+      - uses: actions/upload-artifact@v6
+        with:
+          name: yangyizhi-web-${{ github.sha }}
+          path: artifacts/web/*
+          retention-days: 5
+      - run: node --check clients/windows/main.cjs && node --check clients/windows/preload.cjs && node --check clients/windows/update-core.cjs
+      - run: bash -n deploy/publish.sh deploy/remote-deploy.sh deploy/rollback.sh
+
+  windows:
+    if: ${{ always() && (needs.checks.result == 'success' || needs.checks.result == 'skipped') && (github.event.inputs.platform == '' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows') }}
+    needs: checks
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - run: python src/build.py
+      - run: node scripts/set-desktop-version.mjs windows
+      - run: npm ci
+        working-directory: clients/windows
+      - run: npm run dist
+        working-directory: clients/windows
+      - name: Check installer and produce checksum
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem artifacts/desktop/*windows*x64*setup.exe | Select-Object -First 1
+          if (-not $installer) { throw 'Windows installer missing' }
+          $hash = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $($installer.Name)" | Out-File -Encoding ascii artifacts/desktop/SHA256SUMS.windows.txt
+      - uses: actions/upload-artifact@v6
+        with:
+          name: yangyizhi-windows-${{ github.sha }}
+          path: |
+            artifacts/desktop/*windows*x64*setup.exe
+            artifacts/desktop/*windows*x64*.zip
+            artifacts/desktop/SHA256SUMS.windows.txt
+          retention-days: 5
+
+  android:
+    if: ${{ always() && (needs.checks.result == 'success' || needs.checks.result == 'skipped') && (github.event.inputs.platform == '' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android') }}
+    needs: checks
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v4
+        with:
+          # The accepted android-sdk-license marker is stored in the repository.
+          # Do not accept every license offered by sdkmanager (for example TV/XR add-ons).
+          accept-android-sdk-licenses: false
+          packages: ''
+      - name: Install required Android SDK packages
+        run: |
+          mkdir -p "$ANDROID_HOME/licenses"
+          install -m 644 clients/android/licenses/android-sdk-license "$ANDROID_HOME/licenses/android-sdk-license"
+          sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
+      - run: npm ci
+      - run: npm run android:sync
+      - name: Build debug APK
+        run: ./gradlew --no-daemon assembleDebug
+        working-directory: clients/android
+      - name: Check installable APK and produce checksum
+        run: |
+          apk=clients/android/app/build/outputs/apk/debug/app-debug.apk
+          channel=debug
+          test -s "$apk"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk" | grep -q "package: name='app.yangyizhi.mobile'"
+          sha256sum "$apk" > "$(dirname "$apk")/SHA256SUMS.txt"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose "$apk"
+          version=$(node -p "require('./clients/versions.json').android.version")
+          mkdir -p artifacts/android
+          if [ "$channel" = release ]; then
+            cp "$apk" "artifacts/android/Yangyizhi-${version}-android.apk"
+            cert=$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$apk" | awk -F': ' '/Signer #1 certificate SHA-256 digest:/{print tolower($2);exit}')
+            test "${#cert}" -eq 64
+            node -e "console.log(JSON.stringify({packageName:'app.yangyizhi.mobile',version:process.argv[1],versionCode:require('./clients/versions.json').android.versionCode,certificate:process.argv[2]},null,2))" "$version" "$cert" > artifacts/android/android-signing-report.json
+            cp clients/android/app/build/outputs/bundle/release/app-release.aab "artifacts/android/Yangyizhi-${version}-android.aab"
+          else
+            cp "$apk" "artifacts/android/Yangyizhi-${version}-android-debug.apk"
+          fi
+          (cd artifacts/android && sha256sum * > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v6
+        with:
+          name: yangyizhi-android-${{ github.sha }}
+          path: |
+            artifacts/android/*
+            clients/android/app/build/outputs/apk/debug/*.apk
+            clients/android/app/build/outputs/apk/debug/SHA256SUMS.txt
+            clients/android/app/build/outputs/apk/release/*.apk
+            clients/android/app/build/outputs/apk/release/SHA256SUMS.txt
+            clients/android/app/build/outputs/bundle/release/*.aab
+          retention-days: 5
+
+  macos:
+    if: ${{ always() && (needs.checks.result == 'success' || needs.checks.result == 'skipped') && (github.event.inputs.platform == '' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'macos') }}
+    needs: checks
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - run: python3 src/build.py
+      - run: node scripts/set-desktop-version.mjs macos-arm64
+      - run: npm ci
+        working-directory: clients/windows
+      - run: npm run dist:mac
+        working-directory: clients/windows
+      - name: Produce checksums
+        run: shasum -a 256 artifacts/desktop/*.dmg artifacts/desktop/*.zip > artifacts/desktop/SHA256SUMS.macos-arm64
+      - uses: actions/upload-artifact@v6
+        with:
+          name: yangyizhi-macos-${{ github.sha }}
+          path: |
+            artifacts/desktop/*.dmg
+            artifacts/desktop/*.zip
+            artifacts/desktop/SHA256SUMS.macos-arm64
+          retention-days: 5
+
+  macos-x64:
+    if: ${{ always() && (needs.checks.result == 'success' || needs.checks.result == 'skipped') && (github.event.inputs.platform == '' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'macos') }}
+    needs: checks
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - run: python3 src/build.py
+      - run: node scripts/set-desktop-version.mjs macos-x64
+      - run: npm ci
+        working-directory: clients/windows
+      - run: npm run dist:mac:x64
+        working-directory: clients/windows
+      - name: Produce checksums
+        run: shasum -a 256 artifacts/desktop/*.dmg artifacts/desktop/*.zip > artifacts/desktop/SHA256SUMS.macos-x64
+      - uses: actions/upload-artifact@v6
+        with:
+          name: yangyizhi-macos-x64-${{ github.sha }}
+          path: |
+            artifacts/desktop/*.dmg
+            artifacts/desktop/*.zip
+            artifacts/desktop/SHA256SUMS.macos-x64
+          retention-days: 5

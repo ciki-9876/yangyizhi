@@ -1,0 +1,9 @@
+{
+  "flags": { "chat": true, "memory": true, "nudges": true, "tools": true, "feedback": true, "officialModel": true },
+  "disabledPrompts": [],
+  "official": null,
+  "traceUrl": "",
+  "filing": "",
+  "limits": { "chatDaily": 30, "chatOnlyDays": 3, "useMinutes": 60, "minorMinutes": 40 },
+  "remote": ""
+}
