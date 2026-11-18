@@ -7,8 +7,9 @@
   'use strict';
   const P = window.Pet, C = window.Critter, Sfx = window.Sfx, Fx = window.Fx, DAY = P.DAY, KEY = 'yangyizhi.save.v2';
   const nativeUpdateBridge = window.Capacitor?.registerPlugin ? window.Capacitor.registerPlugin('YangyizhiUpdates') : window.Capacitor?.Plugins?.YangyizhiUpdates;
+  const Cloud = window.YangyizhiCloud;
   let S = P.create();
-  const ui = { looking: false, draft: null, thread: [], from: 0, shown: 0, step: 'idle', busy: false, lastLog: null, promiseLog: null, askQ: '', suggest: '', woke: false, justWoke: false, mood: '', moodT: 0, chat: [], chatN: 0, greetedFor: '', newItems: 0, dropN: 0, freshPart: '', pokes: [], lock: false };
+  const ui = { looking: false, draft: null, thread: [], from: 0, shown: 0, step: 'idle', busy: false, lastLog: null, promiseLog: null, askQ: '', suggest: '', woke: false, justWoke: false, mood: '', moodT: 0, chat: [], chatN: 0, greetedFor: '', newItems: 0, dropN: 0, freshPart: '', pokes: [], lock: false, cloudMode: 'login', cloudMessage: '', cloudPending: null };
   const $ = id => document.getElementById(id);
   const L = () => window.LANGS[S.lang] || window.LANGS.zh;
   const t = (k, v) => { let s = L()[k]; if (v) for (const x in v) s = s.split('{' + x + '}').join(v[x]); return s; };
@@ -25,10 +26,35 @@
 
   /* ---------- 存档：账号云端优先，浏览器兜底 ---------- */
   const Store = {
-    ref: null, kind: 'none', timer: 0, writing: false, pending: false,
-    loadLocal() { try { const r = localStorage.getItem(KEY); return r ? JSON.parse(r) : null; } catch (e) { return null; } },
-    saveLocal() { try { const j = JSON.stringify(S); localStorage.setItem(KEY, j); window.Agent.Persist.mirror(KEY, j); if (this.kind === 'none') this.kind = 'local'; } catch (e) { /* 存不了就只在内存里 */ } },
+    ref: null, kind: 'none', timer: 0, writing: false, pending: false, cloudUser: null, cloudRevision: 0, cloudError: '', cloudQueue: Promise.resolve(),
+    localKey(userId = this.cloudUser?.id) { return userId ? KEY + '.user.' + userId : KEY; },
+    loadLocal(userId = null) { try { const r = localStorage.getItem(this.localKey(userId)); return r ? JSON.parse(r) : null; } catch (e) { return null; } },
+    saveLocal() {
+      try { const j = JSON.stringify(S), key = this.localKey(); localStorage.setItem(key, j); if (!this.cloudUser) localStorage.setItem(KEY, j); window.Agent.Persist.mirror(KEY, j); if (this.kind === 'none') this.kind = 'local'; } catch (e) { /* 存不了就只在内存里 */ }
+    },
+    hasData(value) { return !!(value && (value.goal || value.logs?.length || value.habitat?.length)); },
+    async accountData(user, { importAnonymous = false } = {}) {
+      this.cloudUser = user; this.kind = 'cloud'; this.cloudError = '';
+      const local = this.loadLocal(user.id) || (importAnonymous ? this.loadLocal(null) : null);
+      const remote = await Cloud.loadWorkspace(); this.cloudRevision = remote.revision;
+      if (remote.state && local && JSON.stringify(remote.state) !== JSON.stringify(local)) {
+        this.pendingSync = { user, local: clone(local), remote: clone(remote.state), revision: remote.revision };
+        return 'conflict';
+      }
+      if (remote.state) { adopt(remote.state); this.saveLocal(); return 'cloud'; }
+      if (local && this.hasData(local)) {
+        adopt(local); const result = await Cloud.saveWorkspace(user.id, clone(S), remote.revision); this.cloudRevision = result.revision; this.saveLocal(); return 'uploaded';
+      }
+      return 'empty';
+    },
     async connect() {
+      if (Cloud && Cloud.isConfigured()) {
+        try {
+          const { user } = await Cloud.account(); const result = await this.accountData(user);
+          if (result === 'conflict') { ui.cloudPending = this.pendingSync; }
+          if (result !== 'empty') return null; // accountData adopted remote/local as needed
+        } catch (error) { if (![401, 404].includes(error.status)) this.cloudError = error.message; }
+      }
       try {
         if (!window.claude || !window.claude.use) return null;
         const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
@@ -36,7 +62,7 @@
         const uid = await user.id(); if (!uid) return null;
         const ref = db.doc('data/users/' + uid + '/pet');
         const snap = await Promise.race([ref.get(), new Promise((_, rej) => setTimeout(() => rej({ code: 'timeout' }), 8000))]);
-        this.ref = ref; this.kind = 'cloud';
+        this.ref = ref; if (!this.cloudUser) this.kind = 'cloud';
         return snap.exists ? clone(snap.data()) : null;
       } catch (e) { this.ref = null; return null; }
     },
@@ -45,12 +71,62 @@
       if (S.logs.length > 400) S.logs = S.logs.slice(-400);
       this.saveLocal();
       if (this.ref) { this.pending = true; clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), 700); }
+      if (this.cloudUser && !this.pendingSync) { clearTimeout(this.timer); this.timer = setTimeout(() => this.flushCloud(), 700); }
     },
     async flush() {
       if (this.writing || !this.ref) return; this.writing = true;
       try { while (this.pending) { this.pending = false; await this.ref.set(clone(S)); } }
-      catch (e) { if (!e || e.code !== 'unavailable') { this.ref = null; if (this.kind === 'cloud') this.kind = 'local'; } }
+      catch (e) { if (!e || e.code !== 'unavailable') { this.ref = null; if (!this.cloudUser && this.kind === 'cloud') this.kind = 'local'; } }
       this.writing = false;
+    },
+    flushCloud() {
+      if (!this.cloudUser || this.pendingSync) return;
+      const user = this.cloudUser;
+      this.cloudQueue = this.cloudQueue.then(async () => {
+        if (this.cloudUser !== user || this.pendingSync) return;
+        const snapshot = clone(S), expected = this.cloudRevision;
+        try { const result = await Cloud.saveWorkspace(user.id, snapshot, expected); if (this.cloudUser === user) { this.cloudRevision = result.revision; this.cloudError = ''; this.saveLocal(); } }
+        catch (error) {
+          this.cloudError = error.message;
+          if (error.status === 409 && this.cloudUser === user) {
+            try { const remote = await Cloud.loadWorkspace(); this.pendingSync = { user, local: clone(S), remote: clone(remote.state), revision: remote.revision }; ui.cloudPending = this.pendingSync; }
+            catch (_) { /* 离线时保留本机存档，稍后重试 */ }
+          }
+        }
+      }).catch(error => { this.cloudError = error.message; });
+    },
+    async login(mode, username, password) {
+      if (!Cloud?.isConfigured()) throw new Error('云同步服务尚未配置。');
+      const { user } = await Cloud.authenticate(mode, { username, password });
+      const result = await this.accountData(user, { importAnonymous: true });
+      return this.pendingSync ? 'conflict' : result;
+    },
+    async resolveCloudConflict(choice) {
+      const pending = this.pendingSync; if (!pending || pending.user !== this.cloudUser) return;
+      if (choice === 'cloud') {
+        adopt(pending.remote || P.create()); this.cloudRevision = pending.revision; this.saveLocal();
+      } else {
+        const result = await Cloud.saveWorkspace(pending.user.id, pending.local, pending.revision);
+        adopt(pending.local); this.cloudRevision = result.revision; this.saveLocal();
+      }
+      this.pendingSync = null; ui.cloudPending = null; ui.cloudMessage = ''; closeSheet(); render();
+    },
+    async logout() {
+      const user = this.cloudUser; if (!user) return;
+      this.saveLocal();
+      clearTimeout(this.timer); this.flushCloud(); await this.cloudQueue;
+      if (this.pendingSync) throw new Error('本机与云端存档尚有冲突，请先选择要保留的版本。');
+      await Cloud.logout(); this.cloudUser = null; this.cloudRevision = 0; this.kind = 'local'; this.pendingSync = null;
+      const local = this.loadLocal(null); adopt(local?.v === 2 ? local : P.create()); this.saveLocal();
+    },
+    async deleteAccount(password) {
+      const user = this.cloudUser; if (!user) return;
+      this.flushCloud(); await this.cloudQueue;
+      if (this.pendingSync) throw new Error('本机与云端存档尚有冲突，请先选择要保留的版本。');
+      await Cloud.deleteAccount(password);
+      try { localStorage.removeItem(this.localKey(user.id)); } catch (_) {}
+      this.cloudUser = null; this.cloudRevision = 0; this.pendingSync = null; this.kind = 'local';
+      window.Agent.Persist.remove(KEY); adopt(P.create()); this.saveLocal();
     },
   };
 
@@ -498,12 +574,45 @@
       '<section><div class="lab">' + t('setBrain') + '</div><p class="note">' + (AI.on ? t('setAIOn', { who: esc(AI.who) }) : t('setAIOff')) + '</p><div class="btns"><button type="button" class="btn small" data-act="llm">' + t(AI.ext ? 'llmChange' : 'llmConnect') + '</button></div></section>' +
       nudgeSection() +
       '<section><div class="lab">' + t('setMem') + '</div><div class="btns"><button type="button" class="btn small" data-act="memOpen">' + t('setMemBtn') + '</button></div></section>' +
+      '<section><div class="lab">云端同步</div><p class="note">' + (Store.cloudUser ? '已登录：' + esc(Store.cloudUser.username) + '。存档会在此设备本地保存并同步到云端。' : '登录养一只账号后，可在 Web、Android 和桌面端继续使用同一份存档。') + (Store.cloudError ? '<br><span class="err">' + esc(Store.cloudError) + '</span>' : '') + '</p><button type="button" class="btn small" data-act="cloudOpen">' + (Store.cloudUser ? '账号与同步' : '登录 / 注册') + '</button></section>' +
       '<section style="grid-template-columns:1fr auto;align-items:center"><div><div class="lab">' + t('minorTitle') + '</div><p class="note">' + t('minorLead') + '</p></div>' + sw('setMinor', !!(S.agent && S.agent.minor)) + '</section>' +
       (updateBridge ? '<section><div class="lab">软件更新</div><p class="note">检查当前客户端版本和兼容的更新。</p><button type="button" class="btn small" data-act="updateCheck">检查更新</button></section>' : '') +
       '<section><div class="lab">' + t('setAbout') + '</div><p class="note">' + t(Store.kind === 'cloud' ? 'setSaveCloud' : Store.kind === 'local' ? 'setSaveLocal' : 'setSaveNone') + (Config.get('filing') ? ' ' + esc(t('filing', { x: Config.get('filing') })) : '') + '</p>' +
       '<div class="btns"><button type="button" class="btn small" data-act="export" id="btn-export">' + t('setExport') + '</button><button type="button" class="btn small" data-act="privOpen">' + t('privTitle') + '</button><button type="button" class="btn small" data-act="diagOpen">' + t('diagTitle') + '</button>' + (confirmReset ? '<button type="button" class="btn small hot" data-act="resetGo">' + t('setResetGo') + '</button>' : '<button type="button" class="btn small" data-act="reset">' + t('setReset') + '</button>') + '</div>' +
       (confirmReset ? '<p class="err">' + t('setResetLead') + '</p>' : '') + '<input type="text" id="export-box" readonly hidden aria-label="' + esc(t('setExport')) + '"></section>' +
       '<div class="sublinks"><button type="button" class="linkbtn" data-act="close">' + t('close') + '</button></div>');
+  }
+
+  function sheetCloud() {
+    if (Store.cloudUser) {
+      if (ui.cloudMode === 'delete') {
+        openSheet('<h2>删除云端账号</h2><p class="err">这会永久删除账号和腾讯云存档，无法撤销。请输入当前密码确认。</p><form id="f-cloud-delete"><div class="field"><label for="cloud-delete-pass">当前密码</label><input id="cloud-delete-pass" type="password" autocomplete="current-password" required></div>' +
+          '<p class="err" aria-live="polite">' + esc(ui.cloudMessage || '') + '</p><div class="btns"><button class="btn hot" type="submit">永久删除账号和云存档</button><button class="btn" type="button" data-act="cloudOpen">取消</button></div></form>');
+        return;
+      }
+      openSheet('<h2>云端账号</h2><p class="note">已登录 <strong>' + esc(Store.cloudUser.username) + '</strong>。账号存档版本：' + Store.cloudRevision + '。</p>' +
+        (Store.cloudError ? '<p class="err">' + esc(Store.cloudError) + '</p>' : '<p class="note">每次保存会在本机先落盘，再同步到腾讯云。离线时保留本机数据，联网后可重试。</p>') +
+        '<div class="btns"><button type="button" class="btn primary" data-act="cloudSync">立即同步</button><button type="button" class="btn" data-act="cloudLogout">退出账号</button></div><div class="sublinks"><button type="button" class="linkbtn" data-act="cloudDeleteMode">删除云端账号和存档</button></div>' +
+        '<div class="sublinks"><button type="button" class="linkbtn" data-act="settings">返回设置</button></div>');
+      return;
+    }
+    const d = ui.cloudMessage;
+    openSheet('<h2>' + (ui.cloudMode === 'register' ? '创建养一只账号' : '登录养一只账号') + '</h2>' +
+      '<p class="note">账号用于在你的设备间同步养一只存档。密码只以加盐哈希保存在养一只独立服务中。</p>' +
+      '<form id="f-cloud-auth" autocomplete="on"><div class="field"><label for="cloud-user">用户名</label><input id="cloud-user" name="username" autocomplete="username" minlength="3" maxlength="32" required></div>' +
+      '<div class="field"><label for="cloud-pass">密码</label><input id="cloud-pass" name="password" type="password" autocomplete="' + (ui.cloudMode === 'register' ? 'new-password' : 'current-password') + '" minlength="12" maxlength="128" required><span class="hint">请使用 12 位或更长、未在其他网站使用的密码。</span></div>' +
+      '<p class="' + (d ? 'err' : 'note') + '" aria-live="polite">' + esc(d || '') + '</p><div class="btns"><button class="btn primary" type="submit">' + (ui.cloudMode === 'register' ? '注册并同步' : '登录并同步') + '</button><button class="btn" type="button" data-act="cloudMode">' + (ui.cloudMode === 'register' ? '已有账号，去登录' : '创建新账号') + '</button></div></form>' +
+      '<div class="sublinks"><button type="button" class="linkbtn" data-act="settings">返回设置</button></div>');
+  }
+
+  function sheetCloudConflict() {
+    const pending = Store.pendingSync; if (!pending) return sheetCloud();
+    openSheet('<h2>选择要保留的存档</h2><p class="note">本机存档与云端版本不同。为避免覆盖数据，请选择这一份账号要继续使用的版本。</p>' +
+      '<section><div class="lab">本机</div><p class="note">' + (pending.local.goal ? '有正在进行的目标' : '没有正在进行的目标') + '；记录 ' + (pending.local.logs?.length || 0) + ' 条；完成记录 ' + (pending.local.habitat?.length || 0) + ' 条。</p>' +
+      '<button type="button" class="btn primary" data-act="cloudKeepLocal">保留本机，上传到云端</button></section>' +
+      '<section><div class="lab">腾讯云</div><p class="note">当前云端版本 ' + pending.revision + '；' + (pending.remote?.goal ? '有正在进行的目标' : '没有正在进行的目标') + '；记录 ' + (pending.remote?.logs?.length || 0) + ' 条；完成记录 ' + (pending.remote?.habitat?.length || 0) + ' 条。</p>' +
+      '<button type="button" class="btn" data-act="cloudKeepRemote">载入云端到本机</button></section>' +
+      '<div class="sublinks"><button type="button" class="linkbtn" data-act="close">暂不选择</button></div>');
   }
 
   /* ---------- 接入外部大模型 ---------- */
@@ -629,6 +738,41 @@
   /* ---------- 动作 ---------- */
   const acts = {
     close() { closeSheet(); }, settings() { ui.llm = null; sheetSettings(false); },
+    cloudOpen() { ui.cloudMessage = ''; ui.cloudMode = 'login'; sheetCloud(); },
+    cloudMode() { ui.cloudMode = ui.cloudMode === 'login' ? 'register' : 'login'; ui.cloudMessage = ''; sheetCloud(); },
+    async cloudAuth() {
+      const username = $('cloud-user')?.value.trim(), password = $('cloud-pass')?.value;
+      if (!username || !password) return;
+      try {
+        const result = await Store.login(ui.cloudMode, username, password);
+        ui.cloudMessage = '';
+        if (result === 'conflict') { ui.cloudPending = Store.pendingSync; sheetCloudConflict(); }
+        else { closeSheet(); render(); toast(result === 'uploaded' ? '本机存档已同步到云端。' : Store.cloudUser ? '已连接云端存档。' : '已登录。'); }
+      } catch (error) { ui.cloudMessage = error.message || '登录失败，请稍后重试。'; sheetCloud(); }
+    },
+    async cloudSync() {
+      if (!Store.cloudUser) return;
+      Store.flushCloud(); await Store.cloudQueue;
+      if (Store.pendingSync) { ui.cloudPending = Store.pendingSync; sheetCloudConflict(); }
+      else { ui.cloudMessage = Store.cloudError || '已完成同步。'; sheetCloud(); }
+    },
+    async cloudLogout() {
+      try { await Store.logout(); closeSheet(); render(); toast('已退出养一只账号。'); }
+      catch (error) { Store.cloudError = error.message || '退出失败，请检查网络。'; sheetCloud(); }
+    },
+    cloudDeleteMode() { ui.cloudMode = 'delete'; ui.cloudMessage = ''; sheetCloud(); },
+    async cloudDelete() {
+      try { await Store.deleteAccount($('cloud-delete-pass')?.value || ''); closeSheet(); render(); toast('云端账号和存档已删除。'); }
+      catch (error) { ui.cloudMessage = error.message || '删除失败，账号和数据仍保留。'; sheetCloud(); }
+    },
+    async cloudKeepLocal() {
+      try { await Store.resolveCloudConflict('local'); toast('本机存档已上传。'); }
+      catch (error) { Store.cloudError = error.message || '上传失败，双方存档都已保留。'; sheetCloudConflict(); }
+    },
+    async cloudKeepRemote() {
+      try { await Store.resolveCloudConflict('cloud'); toast('已载入云端存档。'); }
+      catch (error) { Store.cloudError = error.message || '读取失败。'; sheetCloudConflict(); }
+    },
     llm() { ui.llm = null; sheetLLM(); },
     llmPreset(el) { const d = ui.llm; llmRead(); const k = el.dataset.x, p = LLM.PRESETS[k], was = LLM.PRESETS[d.preset]; d.preset = k; d.proto = p.proto; if (k !== 'custom' || !d.base || (was && d.base === was.base)) d.base = p.base; d.model = p.model; d.quick = p.quick || ''; d.msg = ''; d.ok = false; sheetLLM(d); },
     llmProto(el) { llmRead(); ui.llm.proto = el.dataset.x; sheetLLM(ui.llm); },
@@ -763,7 +907,9 @@
   });
   document.addEventListener('submit', ev => {
     ev.preventDefault(); const id = ev.target.id, s = ui.step; if (ui.busy || ui.lock) return;
-    if (id === 'f-ob1') ob1Submit(); else if (id === 'f-ob2') ob2Submit(); else if (id === 'f-ob3') ob3Submit();
+    if (id === 'f-cloud-auth') acts.cloudAuth();
+    else if (id === 'f-cloud-delete') acts.cloudDelete();
+    else if (id === 'f-ob1') ob1Submit(); else if (id === 'f-ob2') ob2Submit(); else if (id === 'f-ob3') ob3Submit();
     else if (id === 'f-talk') { if (s === 'report') submitReport(); else if (s === 'answer') submitAnswer(); else if (s === 'promise' || s === 'editPromise') submitPromise(); else if (s === 'chat') submitChat(); }
   });
   window.addEventListener('hashchange', () => { closeSheet(); render(); window.scrollTo({ top: 0 }); });
@@ -783,6 +929,8 @@
     const was = ui.looking; ui.looking = false;
     if (remote && remote.v === 2 && (remote.savedAt || 0) > (S.savedAt || 0)) { adopt(remote); Store.saveLocal(); ui.draft = null; ui.thread = []; ui.from = 0; ui.step = 'idle'; ui.greetedFor = ''; closeSheet(); render(); }
     else { if (Store.ref && S.rev > 0) { Store.pending = true; Store.flush(); } if (was && !S.goal) render(); }
+    if (Store.cloudUser) render();
+    if (Store.pendingSync) { ui.cloudPending = Store.pendingSync; sheetCloudConflict(); }
   });
   // 安卓：本地存档丢了（系统清理了 WebView 数据）就从原生偏好里恢复
   if (!local) window.Agent.Persist.restore().then(ok => {

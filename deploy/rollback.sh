@@ -18,8 +18,9 @@ flock -n 9 || { echo 'A Yangyizhi deployment is already running.' >&2; exit 1; }
 previous=$(readlink -f "$base/current" 2>/dev/null || true)
 ln -s "$target" "$base/.rollback-$id"
 mv -Tf "$base/.rollback-$id" "$base/current"
-if ! curl --fail --silent --show-error --max-time 15 "$health" | grep -qx 'ok'; then
-  if [[ -n $previous ]]; then ln -s "$previous" "$base/.rollback-recovery"; mv -Tf "$base/.rollback-recovery" "$base/current"; fi
+systemctl restart yangyizhi.service
+if ! curl --fail --silent --show-error --max-time 15 "$health" | grep -q '"ok":true'; then
+  if [[ -n $previous ]]; then ln -s "$previous" "$base/.rollback-recovery"; mv -Tf "$base/.rollback-recovery" "$base/current"; systemctl restart yangyizhi.service; fi
   echo 'Rollback candidate failed health check; previous pointer restored.' >&2
   exit 1
 fi

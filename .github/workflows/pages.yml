@@ -29,25 +29,14 @@ jobs:
         with:
           node-version: 24
       - name: Build site
-        run: python3 src/build.py
-      - name: Restore the existing signed update feed
-        run: node scripts/fetch-update-feed.mjs --url https://ciki-9876.github.io/yangyizhi/updates/stable.json --out artifacts/previous-updates
-      - name: Assemble Pages files
-        id: assemble
         run: |
-          if [ -f artifacts/previous-updates/stable.json ]; then
-            node scripts/prepare-deploy.mjs --web dist --updates artifacts/previous-updates --out artifacts/pages-release
-            mkdir -p artifacts/pages-release/site/updates
-            cp -R artifacts/pages-release/updates/. artifacts/pages-release/site/updates/
-            echo "path=artifacts/pages-release/site" >> "$GITHUB_OUTPUT"
-          else
-            printf 'ok\n' > dist/healthz
-            echo "path=dist" >> "$GITHUB_OUTPUT"
-          fi
+          python3 src/build.py
+          printf '{"webApiBasePath":"","nativeApiBaseUrl":""}\n' > dist/cloud-config.json
+          printf 'ok\n' > dist/healthz
       - name: Upload site
         uses: actions/upload-pages-artifact@v4
         with:
-          path: ${{ steps.assemble.outputs.path }}
+          path: dist
       - name: Deploy site
         id: deployment
         uses: actions/deploy-pages@v4

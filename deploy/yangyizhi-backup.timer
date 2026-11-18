@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily encrypted Yangyizhi workspace backup
+
+[Timer]
+OnCalendar=*-*-* 03:17:00
+Persistent=true
+RandomizedDelaySec=15m
+Unit=yangyizhi-backup.service
+
+[Install]
+WantedBy=timers.target
+

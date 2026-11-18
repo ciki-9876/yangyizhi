@@ -10,19 +10,14 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: github-pages
+  group: tencent-update-feed
   cancel-in-progress: true
 
 jobs:
   build-sign-deploy:
     if: github.ref == 'refs/heads/main'
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
@@ -91,38 +86,54 @@ jobs:
       - name: Add versioned web package
         run: cp artifacts/web/web.zip artifacts/release-input/web.zip
       - name: Restore and verify previous update assets
-        run: node scripts/fetch-update-feed.mjs --url https://ciki-9876.github.io/yangyizhi/updates/stable.json --out artifacts/previous-updates
-      - name: Create signed feed and Pages tree
+        run: node scripts/fetch-update-feed.mjs --url https://81.70.181.205/yangyizhi/updates/stable.json --out artifacts/previous-updates
+      - name: Create signed Tencent update feed
         env:
           ANDROID_CERT_SHA256: ${{ steps.apk.outputs.cert_sha256 }}
           UPDATE_KEY_PASSPHRASE: ${{ secrets.UPDATE_KEY_PASSPHRASE }}
           RELEASE_NOTES: ${{ inputs.release_notes }}
         run: |
           printf '%s\n' "$RELEASE_NOTES" > "$RUNNER_TEMP/release-notes.md"
-          args=(--assets artifacts/release-input --out artifacts/next-updates/stable.json --baseUrl https://ciki-9876.github.io/yangyizhi/updates/ --notes "$RUNNER_TEMP/release-notes.md" --privateKey "$UPDATE_PRIVATE_KEY_PATH")
+          args=(--assets artifacts/release-input --out artifacts/next-updates/stable.json --baseUrl https://81.70.181.205/yangyizhi/updates/ --notes "$RUNNER_TEMP/release-notes.md" --privateKey "$UPDATE_PRIVATE_KEY_PATH")
           if [ -f artifacts/previous-updates/stable.json ]; then
             args+=(--previous artifacts/previous-updates/stable.json)
           fi
           node scripts/release-manifest.mjs "${args[@]}"
-          node scripts/prepare-deploy.mjs --web dist --updates artifacts/next-updates --out artifacts/pages-release
-          mkdir -p artifacts/pages-release/site/updates
-          cp -R artifacts/pages-release/updates/. artifacts/pages-release/site/updates/
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v4
-        with:
-          path: artifacts/pages-release/site
-      - name: Deploy update feed
-        id: deployment
-        uses: actions/deploy-pages@v4
+          node scripts/verify-update-feed.mjs artifacts/next-updates
+      - name: Configure Tencent SSH access
+        env:
+          TENCENT_SSH_PRIVATE_KEY: ${{ secrets.TENCENT_SSH_PRIVATE_KEY }}
+          TENCENT_SSH_KNOWN_HOSTS: ${{ secrets.TENCENT_SSH_KNOWN_HOSTS }}
+        run: |
+          test -n "$TENCENT_SSH_PRIVATE_KEY" && test -n "$TENCENT_SSH_KNOWN_HOSTS"
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+          printf '%s\n' "$TENCENT_SSH_PRIVATE_KEY" > "$RUNNER_TEMP/yangyizhi-deploy-key"
+          chmod 600 "$RUNNER_TEMP/yangyizhi-deploy-key"
+          printf '%s\n' "$TENCENT_SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+          cat > "$HOME/.ssh/config" <<EOF
+          Host *
+            IdentityFile $RUNNER_TEMP/yangyizhi-deploy-key
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+            UserKnownHostsFile $HOME/.ssh/known_hosts
+          EOF
+          chmod 600 "$HOME/.ssh/config"
+      - name: Publish to Tencent Cloud
+        env:
+          TENCENT_SSH_TARGET: ${{ secrets.TENCENT_SSH_TARGET }}
+        run: |
+          test -n "$TENCENT_SSH_TARGET"
+          deploy/publish-updates.sh "$TENCENT_SSH_TARGET" artifacts/next-updates
       - name: Check deployed manifest
         run: |
           curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 2 \
-            https://ciki-9876.github.io/yangyizhi/updates/stable.json -o "$RUNNER_TEMP/deployed-stable.json"
+            https://81.70.181.205/yangyizhi/updates/stable.json -o "$RUNNER_TEMP/deployed-stable.json"
           cmp artifacts/next-updates/stable.json "$RUNNER_TEMP/deployed-stable.json"
-          curl --fail --silent --show-error https://ciki-9876.github.io/yangyizhi/healthz | grep -qx ok
       - name: Remove signing material
         if: always()
-        run: rm -f "$RUNNER_TEMP/yangyizhi-release.jks" "$RUNNER_TEMP/update-private.pem"
+        run: rm -f "$RUNNER_TEMP/yangyizhi-release.jks" "$RUNNER_TEMP/update-private.pem" "$RUNNER_TEMP/yangyizhi-deploy-key"
       - name: Keep verified store bundle for review
         uses: actions/upload-artifact@v6
         with:

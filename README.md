@@ -83,7 +83,7 @@ node ../src/sim.js          # 规则模拟
 
 项目保持原生 JavaScript + Python 构建。Web、Windows/macOS 桌面包与 Android 包使用独立客户端版本，来源见 `clients/versions.json`。构建与更新方案、签名要求、腾讯云隔离部署和回滚流程见 [多端更新说明](clients/UPDATES.md)、[更新清单协议](updates/README.md) 和 [腾讯云部署说明](deploy/README.md)。
 
-当前没有账号云同步或数据库；网站部署不创建数据库。多端 Actions 构建由 `.github/workflows/clients.yml` 负责，5 天 Actions artifact 只用于 CI 中转。签名正式包与更新清单后，通过独立的云发布脚本传至新站点。
+云同步服务采用独立的 Node.js 服务和版本化 JSON 工作区，保存每个账号的养一只完整存档；与拾光类似，账号、每设备登录会话、数据修订号分开管理。数据文件、systemd 服务、端口、URL 路径和备份目录均使用 `yangyizhi` 专属名称，不共享拾光数据。Web 静态资源与账号 API 由同一 HTTPS 来源提供；GitHub Pages 保留用于静态预览，账号云同步以腾讯云产品入口为准。
 
 ## 四条红线
 
@@ -91,4 +91,4 @@ node ../src/sim.js          # 规则模拟
 
 ## 已知缺口
 
-没有账号和云存档；提醒只在安卓 App 里有，真机未验证；真实模型的对话质量还没有评测基线；声音手感、低端手机性能未验证；没有付费、多只同时养。进度见 `docs/dev-plan.md`。
+账号与云同步服务端、前端适配和加密备份脚本已进入实现，产品入口已确定为现有腾讯云主机的 `/yangyizhi/` 独立路径；线上仍需完成一次服务器初始化和健康验收（本机尚无可用 SSH 登录）。提醒只在安卓 App 里有，真机未验证；真实模型的对话质量还没有评测基线；声音手感、低端手机性能未验证；没有付费、多只同时养。进度见 `docs/dev-plan.md`。

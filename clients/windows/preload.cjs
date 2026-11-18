@@ -7,4 +7,5 @@ contextBridge.exposeInMainWorld('YangyizhiDesktop', Object.freeze({
   checkUpdate: () => ipcRenderer.invoke('updates:check'),
   downloadUpdate: () => ipcRenderer.invoke('updates:download'),
   openUpdate: () => ipcRenderer.invoke('updates:open'),
+  cloudRequest: request => ipcRenderer.invoke('cloud:request', request),
 }));

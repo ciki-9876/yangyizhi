@@ -1,0 +1,24 @@
+# Add this route inside the existing HTTPS site block, before its fallback handler.
+# Keep the existing Shiguang, Qiban, TLS, and root routes intact.
+@yangyizhiAccess path /yangyizhi /yangyizhi/*
+log @yangyizhiAccess {
+    output file /var/log/caddy/yangyizhi-access.log {
+        roll_size 20MiB
+        roll_keep 5
+        roll_keep_for 168h
+    }
+}
+@yangyizhiManifest path /yangyizhi/updates/stable.json
+header @yangyizhiManifest Cache-Control "no-store, no-cache, must-revalidate"
+@yangyizhiImmutable path_regexp yangyizhiImmutable ^/yangyizhi/updates/[a-f0-9]{64}/.*$
+header @yangyizhiImmutable Cache-Control "public, max-age=31536000, immutable"
+redir /yangyizhi /yangyizhi/ 308
+handle_path /yangyizhi/updates/* {
+    root * /srv/yangyizhi/updates
+    file_server
+}
+handle_path /yangyizhi/* {
+    reverse_proxy 127.0.0.1:52171 {
+        header_up X-Yangyizhi-Client-IP {remote_host}
+    }
+}
