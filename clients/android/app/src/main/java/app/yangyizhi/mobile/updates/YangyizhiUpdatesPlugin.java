@@ -122,10 +122,17 @@ public class YangyizhiUpdatesPlugin extends Plugin {
 
     private JSObject check() throws Exception {
         PackageInfo current = getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0);
-        JSONObject payload = readPayload();
-        JSONObject item = releaseItem(payload);
         JSObject result = new JSObject();
         result.put("currentVersion", current.versionName);
+        JSONObject cfg = config();
+        String manifestUrl = cfg.optString("manifestUrl", "");
+        if (manifestUrl.contains(".invalid/") || cfg.optString("publicKey", "").startsWith("REPLACE")) {
+            result.put("available", false);
+            result.put("message", "更新服务还没有配置。当前版本可以正常使用。");
+            return result;
+        }
+        JSONObject payload = readPayload();
+        JSONObject item = releaseItem(payload);
         result.put("available", item != null);
         if (item != null) {
             result.put("version", item.getString("version")); result.put("versionCode", item.getLong("versionCode"));

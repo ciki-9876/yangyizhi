@@ -37,6 +37,7 @@ jobs:
       - run: npm run build:web
       - run: node scripts/set-desktop-version.mjs windows
       - run: npm run check:versions
+      - run: node --check scripts/release-manifest.mjs && node --check scripts/fetch-update-feed.mjs
       - run: python scripts/archive-web.py
       - uses: actions/upload-artifact@v6
         with:

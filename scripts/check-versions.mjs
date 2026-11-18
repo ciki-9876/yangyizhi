@@ -22,6 +22,12 @@ for (const [name, version] of Object.entries({ web: versions.web, windows: versi
 if (!Number.isSafeInteger(versions.android?.versionCode) || versions.android.versionCode < 1) fail('Android versionCode 必须是正整数');
 if (desktop.version !== versions.windows) fail('Electron package version 与 versions.json 不一致');
 if (config.protocol !== versions.updateProtocol) fail('更新协议版本不一致');
+try {
+  const manifest = new URL(config.manifestUrl);
+  if (manifest.protocol !== 'https:' || manifest.username || manifest.password || manifest.search || manifest.hash || manifest.hostname.endsWith('.invalid')) fail('更新清单必须使用正式 HTTPS 地址');
+} catch {
+  fail('更新清单地址无效');
+}
 const compatibilityPairs = [
   ['windows', versions.windows, versions.minimumCompatible?.windows],
   ['android', versions.android.version, versions.minimumCompatible?.android],

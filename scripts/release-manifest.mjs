@@ -1,4 +1,4 @@
-import { createHash, createPublicKey, sign, verify } from 'node:crypto';
+import { createHash, createPrivateKey, createPublicKey, sign, verify } from 'node:crypto';
 import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -45,6 +45,14 @@ export function makeEnvelope(payload, privateKey) {
   validatePayload(payload);
   const bytes = Buffer.from(JSON.stringify(payload));
   return { payload: bytes.toString('base64'), signature: sign('RSA-SHA256', bytes, privateKey).toString('base64') };
+}
+
+export function loadPrivateKey(pem, passphrase) {
+  try {
+    return passphrase ? createPrivateKey({ key: pem, passphrase }) : createPrivateKey(pem);
+  } catch (error) {
+    throw new Error(passphrase ? '更新私钥无法解锁，请检查 UPDATE_KEY_PASSPHRASE。' : '更新私钥已加密；请通过 UPDATE_KEY_PASSPHRASE 环境变量提供口令。', { cause: error });
+  }
 }
 
 export function readEnvelope(envelope, publicKey) {
@@ -117,7 +125,8 @@ async function main() {
     if (!assets.macos?.[arch]) throw new Error(`macOS ${arch} 需要 ZIP 更新包才能发布 DMG 下载入口`);
     assets.macos[arch].installer = installer;
   }
-  const privateKey = await readFile(args.privateKey, 'utf8');
+  const privateKeyPem = await readFile(args.privateKey, 'utf8');
+  const privateKey = loadPrivateKey(privateKeyPem, process.env.UPDATE_KEY_PASSPHRASE);
   const publicKey = createPublicKey(privateKey);
   const clients = Object.fromEntries(Object.entries(assets).filter(([key]) => key !== 'web'));
   let previous;

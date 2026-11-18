@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { generateKeyPairSync } = require('node:crypto');
-const { compareVersion, verifyEnvelope } = require('../clients/windows/update-core.cjs');
+const { compareVersion, verifyEnvelope, checkForUpdate } = require('../clients/windows/update-core.cjs');
 
 test('desktop versions are compared as numeric components', () => {
   assert.equal(compareVersion('1.10.0', '1.9.9'), 1);
@@ -19,4 +19,11 @@ test('desktop updater verifies signed envelopes before reading platform data', (
   assert.equal(verifyEnvelope(envelope, publicKey).clients.windows.version, '1.2.0');
   envelope.payload = Buffer.from('tampered').toString('base64');
   assert.throws(() => verifyEnvelope(envelope, publicKey), /签名/);
+});
+
+test('desktop updater explains an unconfigured feed without making a network request', async () => {
+  await assert.rejects(
+    checkForUpdate({ platform: 'win32', arch: 'x64', currentVersion: '0.1.0' }),
+    /更新服务还没有配置/,
+  );
 });

@@ -26,6 +26,8 @@ deploy/rollback.sh <SSH_HOST_ALIAS> <release-id> https://<新域名>/healthz
 正式包准备顺序：从 Actions 分别下载 `web`、Windows、Android release 与 macOS 两架构产物，放入 `artifacts/release-input/`。只将可发布的 APK（不是 debug 包）、Windows NSIS `.exe`、macOS updater `.zip` / 安装 `.dmg` 与 `web.zip` 放入输入目录。准备新版本说明后，使用本机私钥签名：
 
 ```sh
+read -r -s -p '更新私钥口令：' UPDATE_KEY_PASSPHRASE; echo
+export UPDATE_KEY_PASSPHRASE
 node scripts/release-manifest.mjs \
   --assets artifacts/release-input \
   --out artifacts/release-updates/stable.json \
@@ -38,6 +40,7 @@ node scripts/prepare-deploy.mjs \
   --updates artifacts/release-updates \
   --out artifacts/deploy/<版本>
 deploy/publish.sh <SSH_HOST_ALIAS> https://<新域名>/healthz artifacts/deploy/<版本>
+unset UPDATE_KEY_PASSPHRASE
 ```
 
 首次发布不传 `--previous`。后续发布应传上一版 `stable.json` 及同目录哈希文件，脚本会验签、校验旧包并保留未变更平台的更新入口，再签发新清单。更新客户端下载目录必须与客户端 `manifestUrl` 一致；首次设置新域名时，同时改 `clients/update-config.json`，重新构建全部客户端并发布，不能只改服务器 Caddy 配置。

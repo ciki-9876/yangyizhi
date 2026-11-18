@@ -36,6 +36,7 @@ function updateEntry(payload, platform, arch) {
 
 async function fetchBytes(url, maxBytes) {
   const endpoint = new URL(config.manifestUrl);
+  if (endpoint.protocol !== 'https:' || endpoint.hostname.endsWith('.invalid') || config.publicKey.startsWith('REPLACE')) throw new Error('更新服务还没有配置。当前版本可以正常使用。');
   const target = new URL(url);
   if (endpoint.protocol !== 'https:' || target.origin !== endpoint.origin || target.username || target.password || target.search || target.hash) throw new Error('更新下载地址不受信任');
   const response = await fetch(target, { redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(120000) });

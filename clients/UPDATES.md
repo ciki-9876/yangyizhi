@@ -29,6 +29,19 @@ Windows / macOS 桌面客户端与 Android 通过设置页查询同一 RSA-SHA25
 
 清单及 Web 压缩包/原生安装包由 `scripts/release-manifest.mjs` 生成，必须由 `scripts/init-signing.sh` 创建的长期 RSA 私钥签名。公开密钥固定于客户端配置；只允许可信 HTTPS 更新源。Web 与更新文件分目录发布：Web 使用独立不可变 release 目录，安装包路径带内容 SHA-256，最后才切换稳定清单。`scripts/prepare-deploy.mjs` 将 `dist/` 与签名更新目录合并为 `site/` + `updates/` 发布树，再交给云端部署脚本。
 
+## Android 首次签名发布到 GitHub Pages
+
+仓库的 Pages 站点为 `https://ciki-9876.github.io/yangyizhi/`，客户端固定读取 `/updates/stable.json`。`pages.yml` 每次部署网页时会先从当前 Pages 下载旧清单，验签并逐个校验旧安装包，再把它们带入新站点，避免普通网页发布意外清掉更新文件。`publish-android-updates.yml` 只允许从 `main` 手动运行；它构建正式签名 APK、Web 压缩包、生成 RSA-SHA256 清单并部署 Pages，最后检查清单与 `/healthz`。
+
+正式发布前：
+
+1. 核实没有可沿用的 Android keystore 或清单私钥。首次发布应从本机运行 `scripts/init-signing.sh`，生成长期密钥，并把整个 `~/.local/share/yangyizhi/signing/` 目录加密备份到两处独立的离线位置。忘记密码或丢失 Android keystore 后，已安装应用无法正常覆盖升级；更换更新清单私钥则会让旧客户端拒绝后续清单。
+2. 将 `update-private.pem` 的完整加密 PEM、更新私钥口令、`android-release.jks` 的 Base64 内容、keystore/key 口令和 alias 保存为 GitHub Repository Secrets：`UPDATE_PRIVATE_KEY_PEM`、`UPDATE_KEY_PASSPHRASE`、`ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD`。不要在聊天、命令行参数、日志或仓库写入这些值。
+3. 确认 `clients/update-config.json` 里的公开密钥由同一私钥生成，并确认 Android 版本与 `versionCode` 已按发布策略递增。首次正式签名包不能覆盖调试签名包；从调试包切换前，先在应用内“复制存档”并保存数据，再安装首个正式签名包。
+4. 合并并部署包含真实公开密钥的客户端后，在 GitHub Actions 手动运行 **Publish signed Android update feed**，填写面向用户的发布说明。工作流会验证包名、APK 签名证书和更新清单，再部署到 Pages；Actions 日志不会输出私钥或口令。
+
+首次运行只发布 Android 与 Web 更新项；后续清单会保留已发布 Windows/macOS 更新项及其校验过的下载文件。Pages 上的 Android APK 应低于 GitHub Pages 单文件限制；更大的正式安装包继续通过独立腾讯云下载目录分发。
+
 ## 正式发布签名
 
 - Android: 使用专用且稳定的 `android-release.jks`，安全存放于本机 `~/.local/share/yangyizhi/signing/` 或受控 GitHub Secrets。CI 读入 Secrets 后只在 runner 临时目录落盘，构建后删除；不要上传 Actions artifact 或打印密码。商店 AAB 和直接下载 APK 使用同一 upload key。

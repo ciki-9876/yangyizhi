@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { generateKeyPairSync } from 'node:crypto';
-import { makeEnvelope, readEnvelope, sha256, validatePayload } from '../scripts/release-manifest.mjs';
+import { createPublicKey, generateKeyPairSync } from 'node:crypto';
+import { loadPrivateKey, makeEnvelope, readEnvelope, sha256, validatePayload } from '../scripts/release-manifest.mjs';
 
 const keys = generateKeyPairSync('rsa', { modulusLength: 3072 });
 const asset = {
@@ -53,4 +53,16 @@ test('rejects altered signature, missing hash, incompatible protocol and unsafe 
 
 test('SHA-256 helper returns a stable lowercase digest', () => {
   assert.equal(sha256(Buffer.from('hello')), '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824');
+});
+
+test('encrypted release private keys unlock with the configured passphrase', () => {
+  const encrypted = generateKeyPairSync('rsa', {
+    modulusLength: 2048,
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem', cipher: 'aes-256-cbc', passphrase: 'test-only-passphrase' },
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+  });
+  const privateKey = loadPrivateKey(encrypted.privateKey, 'test-only-passphrase');
+  const envelope = makeEnvelope(payload, privateKey);
+  assert.equal(readEnvelope(envelope, createPublicKey(privateKey)).channel, 'stable');
+  assert.throws(() => loadPrivateKey(encrypted.privateKey, 'wrong-passphrase'), /无法解锁/);
 });
