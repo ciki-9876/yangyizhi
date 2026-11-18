@@ -27,7 +27,7 @@
   const Store = {
     ref: null, kind: 'none', timer: 0, writing: false, pending: false,
     loadLocal() { try { const r = localStorage.getItem(KEY); return r ? JSON.parse(r) : null; } catch (e) { return null; } },
-    saveLocal() { try { localStorage.setItem(KEY, JSON.stringify(S)); if (this.kind === 'none') this.kind = 'local'; } catch (e) { /* 存不了就只在内存里 */ } },
+    saveLocal() { try { const j = JSON.stringify(S); localStorage.setItem(KEY, j); window.Agent.Persist.mirror(KEY, j); if (this.kind === 'none') this.kind = 'local'; } catch (e) { /* 存不了就只在内存里 */ } },
     async connect() {
       try {
         if (!window.claude || !window.claude.use) return null;
@@ -693,6 +693,7 @@
     async deleteGo() {
       await Platform.notify.cancel([1001, 1002, 1003, 1004, Tools.TIMER_ID]);
       for (const k of ['yangyizhi.llm.v1', 'yangyizhi.trace.v1', 'yangyizhi.config.v1']) window.Agent.LS.del(k);
+      window.Agent.Persist.remove('yangyizhi.llm.v1');
       Platform.resetDeviceId(); AI.use(null);
       S = P.create(); adopt(S); ui.draft = null; ui.thread = []; ui.from = 0; ui.step = 'idle'; ui.busy = false; ui.greetedFor = ''; ui.woke = false; Store.save(); closeSheet(); location.hash = 'pet'; render(); toast(t('privDeleted'));
     },
@@ -783,6 +784,11 @@
     if (remote && remote.v === 2 && (remote.savedAt || 0) > (S.savedAt || 0)) { adopt(remote); Store.saveLocal(); ui.draft = null; ui.thread = []; ui.from = 0; ui.step = 'idle'; ui.greetedFor = ''; closeSheet(); render(); }
     else { if (Store.ref && S.rev > 0) { Store.pending = true; Store.flush(); } if (was && !S.goal) render(); }
   });
+  // 安卓：本地存档丢了（系统清理了 WebView 数据）就从原生偏好里恢复
+  if (!local) window.Agent.Persist.restore().then(ok => {
+    const r = ok && Store.loadLocal(); if (!r || r.v !== 2 || S.goal) return;
+    adopt(r); Store.kind = 'local'; ui.looking = false; ui.draft = null; ui.thread = []; ui.from = 0; ui.step = 'idle'; ui.greetedFor = ''; AI.init(); closeSheet(); render(); Nudge.sync().catch(() => {});
+  }).catch(() => {});
   AI.init();
   Config.load().then(() => { AI.sync(); if (route() === 'pet' && S.goal && !sheetOpen() && ui.step === 'idle' && !ui.busy) renderTalk(); });
   // 打开和回到前台：记一次「打开」、把已发出的提醒记账并重排、补做一次记忆整理

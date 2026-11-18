@@ -38,6 +38,7 @@ jobs:
           python3 e2e.py --nomock
           python3 e2e_llm.py
           python3 e2e_agent.py
+          python3 e2e_persist.py
 
   # 红线评测：改了提示词或运行时就跑；需要在仓库 Secrets 里配置 EVAL_BASE / EVAL_KEY / EVAL_MODEL
   redline-eval:

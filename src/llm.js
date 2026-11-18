@@ -17,7 +17,7 @@ const LLM = (() => {
   };
 
   function load() { try { const c = JSON.parse(localStorage.getItem(KEY) || 'null'); return c && c.base && c.model ? c : null; } catch (e) { return null; } }
-  function save(c) { try { if (c) localStorage.setItem(KEY, JSON.stringify(c)); else localStorage.removeItem(KEY); return true; } catch (e) { return false; } }
+  function save(c) { const P = typeof window !== 'undefined' && window.Agent && window.Agent.Persist; try { if (c) { localStorage.setItem(KEY, JSON.stringify(c)); P && P.mirror(KEY, JSON.stringify(c)); } else { localStorage.removeItem(KEY); P && P.remove(KEY); } return true; } catch (e) { return false; } }
   const trimBase = b => String(b || '').trim().replace(/\/+$/, '');
   const label = c => c ? ((PRESETS[c.preset] && c.preset !== 'custom' ? PRESETS[c.preset].name : '') || hostOf(c.base)) : '';
   function hostOf(u) { try { return new URL(u).host; } catch (e) { return u; } }

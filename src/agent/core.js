@@ -18,8 +18,8 @@
   const Platform = {
     kind: native ? (cap.getPlatform ? cap.getPlatform() : 'android') : root.YangyizhiDesktop ? 'desktop' : 'web',
     native,
-    deviceId() { let d = LS.get('yangyizhi.did'); if (!d) { d = uid(); LS.set('yangyizhi.did', d); } return d; },
-    resetDeviceId() { LS.del('yangyizhi.did'); },
+    deviceId() { let d = LS.get('yangyizhi.did'); if (!d) { d = uid(); LS.set('yangyizhi.did', d); A.Persist && A.Persist.mirror('yangyizhi.did', JSON.stringify(d)); } return d; },
+    resetDeviceId() { LS.del('yangyizhi.did'); A.Persist && A.Persist.remove('yangyizhi.did'); },
     onResume(cb) { document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') cb(); }); },
     notify: {
       get ln() { return plugin('LocalNotifications'); },
@@ -48,6 +48,29 @@
     },
   };
   A.Platform = Platform;
+
+  /* ---------- 原生持久化：把存档镜像到安卓 SharedPreferences ----------
+   * localStorage 在系统清理 WebView 数据时可能丢。原生壳里每次写入同时镜像一份到 Capacitor Preferences，
+   * 启动时本地没有存档、而原生有，就恢复回来。网页和桌面端没有这个插件，什么也不做。 */
+  const Persist = {
+    KEYS: ['yangyizhi.save.v2', 'yangyizhi.llm.v1', 'yangyizhi.did'],
+    get p() { return plugin('Preferences'); },
+    available() { return !!this.p; },
+    mirror(key, value) { const p = this.p; if (!p || this.KEYS.indexOf(key) < 0) return; try { Promise.resolve(p.set({ key, value })).catch(() => {}); } catch (e) { /* 忽略 */ } },
+    remove(key) { const p = this.p; if (!p) return; try { Promise.resolve(p.remove({ key })).catch(() => {}); } catch (e) { /* 忽略 */ } },
+    // 只补缺：本地已有的键不动。返回是否恢复了存档
+    async restore() {
+      const p = this.p; if (!p) return false; let got = false;
+      for (const key of this.KEYS) {
+        try {
+          if (localStorage.getItem(key) != null) continue;
+          const r = await p.get({ key }); if (r && r.value != null) { localStorage.setItem(key, r.value); if (key === this.KEYS[0]) got = true; }
+        } catch (e) { /* 读不到就当没有 */ }
+      }
+      return got;
+    },
+  };
+  A.Persist = Persist;
 
   /* ---------- 远程配置：功能开关、官方模型、上报地址、额度、公示信息 ----------
    * 先用内置默认值，再读随包发布的 config.json，再读其中 remote 指向的远程配置（缓存 6 小时）。

@@ -10,7 +10,7 @@
 
 | 编号 | 状态 | 说明 |
 |---|---|---|
-| M0-1 平台适配 | ✅ | `src/agent/core.js` Platform：网页 / 安卓 / 桌面；存储沿用 localStorage |
+| M0-1 平台适配 | ✅ | `src/agent/core.js` Platform：网页 / 安卓 / 桌面；存储沿用 localStorage；安卓壳另镜像一份到 Capacitor Preferences（存档、模型配置、设备 id），本地被清空时启动恢复 |
 | M0-2 事件日志 | ✅ | `S.events`，旧存档自动补出；存档版本仍为 v2，不影响规则引擎 |
 | M0-3 红线评测 | 🟡 | `evals/redline.mjs` 27 条用例；**基线要用真实模型跑一次**（`--save-baseline`） |
 | M0-4 CI | 🟡 | `.github/workflows/agent-tests.yml`；还没在 GitHub 上跑过；评测需要配置 Secrets |

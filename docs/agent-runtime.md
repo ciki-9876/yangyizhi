@@ -72,3 +72,14 @@ cd tests && python3 mock_llm.py 8765 & python3 mock_llm.py 8766 --nocors &
 python3 e2e.py && python3 e2e_llm.py && python3 e2e_agent.py
 EVAL_BASE=… EVAL_KEY=… EVAL_MODEL=… node evals/redline.mjs --save-baseline   # 第一次用真实模型跑，存基线
 ```
+
+## 安卓原生持久化（Capacitor Preferences）
+
+数据仍以 `localStorage` 为准，读写路径不变。安卓壳里额外做两件事（`src/agent/core.js` 的 `Agent.Persist`）：
+
+- **镜像**：存档（`yangyizhi.save.v2`）、外部模型配置（`yangyizhi.llm.v1`）、设备 id（`yangyizhi.did`）每次写入时，同时写一份到 Capacitor Preferences（Android SharedPreferences）。只镜像这三个键；追踪记录和远程配置缓存不镜像。
+- **恢复**：启动时如果 `localStorage` 里没有存档，就从 Preferences 补回缺的键，再进入主界面。本地已有的键不会被覆盖。
+
+“删除全部数据”会同时清掉 Preferences 里的模型配置，并重置设备 id；存档被新的空存档覆盖。网页和桌面端没有这个插件，`Persist` 什么也不做。
+
+已知局限：用户在系统设置里“清除数据”会同时清掉 SharedPreferences，这种情况只能靠导出存档或将来的云存档。测试：`tests/e2e_persist.py`。
