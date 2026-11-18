@@ -40,6 +40,9 @@ async function fetchBytes(url, maxBytes) {
   const target = new URL(url);
   if (endpoint.protocol !== 'https:' || target.origin !== endpoint.origin || target.username || target.password || target.search || target.hash) throw new Error('更新下载地址不受信任');
   const response = await fetch(target, { redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(120000) });
+  if (!response.ok && response.status === 404 && maxBytes === MAX_MANIFEST_BYTES) {
+    throw new Error('更新服务尚未发布首个更新清单。当前版本可以正常使用。');
+  }
   if (!response.ok) throw new Error(`下载失败（HTTP ${response.status}）`);
   const declaredLength = Number(response.headers.get('content-length'));
   if (Number.isFinite(declaredLength) && declaredLength > maxBytes) throw new Error('下载文件超过大小限制');

@@ -14,12 +14,17 @@ if [[ -e $private_key || -e $android_keystore ]]; then
   exit 1
 fi
 
-read -r -s -p '更新清单私钥口令：' UPDATE_KEY_PASSPHRASE; echo
-read -r -s -p 'Android keystore 口令：' ANDROID_KEYSTORE_PASSWORD; echo
-read -r -s -p 'Android key 口令（可与 keystore 口令相同）：' ANDROID_KEY_PASSWORD; echo
-read -r -p 'Android 证书有效年数 [30]：' CERT_YEARS
+UPDATE_KEY_PASSPHRASE=${UPDATE_KEY_PASSPHRASE:-}
+ANDROID_KEYSTORE_PASSWORD=${ANDROID_KEYSTORE_PASSWORD:-}
+ANDROID_KEY_PASSWORD=${ANDROID_KEY_PASSWORD:-}
+CERT_YEARS=${CERT_YEARS:-}
+if [[ -z $UPDATE_KEY_PASSPHRASE ]]; then read -r -s -p '更新清单私钥口令：' UPDATE_KEY_PASSPHRASE; echo; fi
+if [[ -z $ANDROID_KEYSTORE_PASSWORD ]]; then read -r -s -p 'Android keystore 口令：' ANDROID_KEYSTORE_PASSWORD; echo; fi
+if [[ -z $ANDROID_KEY_PASSWORD ]]; then read -r -s -p 'Android key 口令（可与 keystore 口令相同）：' ANDROID_KEY_PASSWORD; echo; fi
+if [[ -z $CERT_YEARS ]]; then read -r -p 'Android 证书有效年数 [30]：' CERT_YEARS; fi
 CERT_YEARS=${CERT_YEARS:-30}
 [[ $CERT_YEARS =~ ^[1-9][0-9]?$ ]] || { echo '证书有效期无效。' >&2; exit 2; }
+[[ ${#UPDATE_KEY_PASSPHRASE} -ge 24 && ${#ANDROID_KEYSTORE_PASSWORD} -ge 24 && ${#ANDROID_KEY_PASSWORD} -ge 24 ]] || { echo '签名口令至少需要 24 个字符。' >&2; exit 2; }
 export UPDATE_KEY_PASSPHRASE ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_PASSWORD
 temporary="$signing_dir/.initializing-$$"
 mkdir -m 0700 "$temporary"

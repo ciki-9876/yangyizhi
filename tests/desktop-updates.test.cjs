@@ -21,9 +21,15 @@ test('desktop updater verifies signed envelopes before reading platform data', (
   assert.throws(() => verifyEnvelope(envelope, publicKey), /签名/);
 });
 
-test('desktop updater explains an unconfigured feed without making a network request', async () => {
-  await assert.rejects(
-    checkForUpdate({ platform: 'win32', arch: 'x64', currentVersion: '0.1.0' }),
-    /更新服务还没有配置/,
-  );
+test('desktop updater explains that the first feed has not been published', async () => {
+  const originalFetch = global.fetch;
+  global.fetch = async () => new Response('', { status: 404 });
+  try {
+    await assert.rejects(
+      checkForUpdate({ platform: 'win32', arch: 'x64', currentVersion: '0.1.0' }),
+      /尚未发布首个更新清单/,
+    );
+  } finally {
+    global.fetch = originalFetch;
+  }
 });

@@ -108,45 +108,13 @@ jobs:
           sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
       - run: npm ci
       - run: npm run android:sync
-      - name: Prepare stable release signing (only when repository Secrets are configured)
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
-            echo 'Release signing not configured; building installable debug APK only.'
-            exit 0
-          fi
-          test -n "$ANDROID_KEYSTORE_PASSWORD" && test -n "$ANDROID_KEY_ALIAS" && test -n "$ANDROID_KEY_PASSWORD"
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/yangyizhi-release.jks"
-          chmod 600 "$RUNNER_TEMP/yangyizhi-release.jks"
-          {
-            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/yangyizhi-release.jks"
-            echo "ANDROID_KEYSTORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD"
-            echo "ANDROID_KEY_ALIAS=$ANDROID_KEY_ALIAS"
-            echo "ANDROID_KEY_PASSWORD=$ANDROID_KEY_PASSWORD"
-          } >> "$GITHUB_ENV"
-      - name: Build APK and store bundle
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        run: |
-          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
-            ./gradlew --no-daemon assembleRelease bundleRelease
-          else
-            ./gradlew --no-daemon assembleDebug
-          fi
+      - name: Build debug APK
+        run: ./gradlew --no-daemon assembleDebug
         working-directory: clients/android
       - name: Check installable APK and produce checksum
         run: |
-          if [ -s clients/android/app/build/outputs/apk/release/app-release.apk ]; then
-            apk=clients/android/app/build/outputs/apk/release/app-release.apk
-            channel=release
-          else
-            apk=clients/android/app/build/outputs/apk/debug/app-debug.apk
-            channel=debug
-          fi
+          apk=clients/android/app/build/outputs/apk/debug/app-debug.apk
+          channel=debug
           test -s "$apk"
           "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk" | grep -q "package: name='app.yangyizhi.mobile'"
           sha256sum "$apk" > "$(dirname "$apk")/SHA256SUMS.txt"

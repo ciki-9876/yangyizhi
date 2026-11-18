@@ -76,7 +76,7 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          clients/android/gradlew --no-daemon -p clients/android assembleRelease
+          clients/android/gradlew --no-daemon -p clients/android assembleRelease bundleRelease
           apk=clients/android/app/build/outputs/apk/release/app-release.apk
           test -s "$apk"
           "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk" | grep -q "package: name='app.yangyizhi.mobile'"
@@ -85,8 +85,9 @@ jobs:
           test "${#cert}" -eq 64
           echo "cert_sha256=$cert" >> "$GITHUB_OUTPUT"
           version=$(node -p "require('./clients/versions.json').android.version")
-          mkdir -p artifacts/release-input
+          mkdir -p artifacts/release-input artifacts/store-bundle
           cp "$apk" "artifacts/release-input/Yangyizhi-${version}-android.apk"
+          cp clients/android/app/build/outputs/bundle/release/app-release.aab "artifacts/store-bundle/Yangyizhi-${version}-android.aab"
       - name: Add versioned web package
         run: cp artifacts/web/web.zip artifacts/release-input/web.zip
       - name: Restore and verify previous update assets
@@ -122,3 +123,9 @@ jobs:
       - name: Remove signing material
         if: always()
         run: rm -f "$RUNNER_TEMP/yangyizhi-release.jks" "$RUNNER_TEMP/update-private.pem"
+      - name: Keep verified store bundle for review
+        uses: actions/upload-artifact@v6
+        with:
+          name: yangyizhi-android-store-${{ github.sha }}
+          path: artifacts/store-bundle/*.aab
+          retention-days: 5

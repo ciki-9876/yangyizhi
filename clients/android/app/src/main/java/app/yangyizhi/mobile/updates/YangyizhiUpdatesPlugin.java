@@ -61,6 +61,7 @@ public class YangyizhiUpdatesPlugin extends Plugin {
         connection.setRequestProperty("Accept", "application/json, application/octet-stream");
         try {
             int status = connection.getResponseCode();
+            if (status == 404 && limit == MAX_MANIFEST) throw new Exception("更新服务尚未发布首个更新清单。当前版本可以正常使用。");
             if (status != 200) throw new Exception("更新服务器暂时不可用（HTTP " + status + "）");
             if (connection.getContentLengthLong() > limit) throw new Exception("下载内容超出大小限制");
             try (InputStream in = connection.getInputStream()) { return readLimited(in, limit); }

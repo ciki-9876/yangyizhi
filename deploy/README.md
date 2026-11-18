@@ -26,8 +26,7 @@ deploy/rollback.sh <SSH_HOST_ALIAS> <release-id> https://<新域名>/healthz
 正式包准备顺序：从 Actions 分别下载 `web`、Windows、Android release 与 macOS 两架构产物，放入 `artifacts/release-input/`。只将可发布的 APK（不是 debug 包）、Windows NSIS `.exe`、macOS updater `.zip` / 安装 `.dmg` 与 `web.zip` 放入输入目录。准备新版本说明后，使用本机私钥签名：
 
 ```sh
-read -r -s -p '更新私钥口令：' UPDATE_KEY_PASSPHRASE; echo
-export UPDATE_KEY_PASSPHRASE
+export UPDATE_KEY_PASSPHRASE="$(security find-generic-password -a update-key-passphrase -s yangyizhi.signing -w)"
 node scripts/release-manifest.mjs \
   --assets artifacts/release-input \
   --out artifacts/release-updates/stable.json \
