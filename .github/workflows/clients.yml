@@ -45,7 +45,8 @@ jobs:
           path: artifacts/web/*
           retention-days: 5
       - run: node --check clients/windows/main.cjs && node --check clients/windows/preload.cjs && node --check clients/windows/update-core.cjs
-      - run: bash -n deploy/publish.sh deploy/remote-deploy.sh deploy/rollback.sh
+      - run: bash -n deploy/publish.sh deploy/remote-deploy.sh deploy/rollback.sh deploy/publish-cloud.sh deploy/remote-cloud-deploy.sh deploy/publish-updates.sh deploy/remote-updates-deploy.sh deploy/rollback-updates.sh
+      - run: node --check scripts/verify-update-feed.mjs && node --check server/server.mjs
 
   windows:
     if: ${{ always() && (needs.checks.result == 'success' || needs.checks.result == 'skipped') && (github.event.inputs.platform == '' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'windows') }}

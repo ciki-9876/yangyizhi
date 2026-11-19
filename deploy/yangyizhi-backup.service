@@ -1,0 +1,18 @@
+[Unit]
+Description=Encrypt and rotate the Yangyizhi workspace backup
+Requires=yangyizhi.service
+After=yangyizhi.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+UMask=0077
+ExecStart=/usr/bin/node /opt/yangyizhi/current/scripts/workspace-backup.mjs --source /var/lib/yangyizhi/workspace.json --out /var/backups/yangyizhi --key-file /etc/yangyizhi-backup.key --retention-days 7
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadOnlyPaths=/var/lib/yangyizhi /opt/yangyizhi/current
+ReadWritePaths=/var/backups/yangyizhi
+NoNewPrivileges=true
+

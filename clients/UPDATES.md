@@ -27,20 +27,20 @@ Windows NSIS 安装包由 Windows Actions runner 构建；macOS DMG / ZIP 在 ma
 
 Windows / macOS 桌面客户端与 Android 通过设置页查询同一 RSA-SHA256 签名清单。客户端限制 HTTPS 下载源，不允许重定向；检查协议、平台、最低兼容版本、版本、大小和 SHA-256。Windows / macOS 在用户选择路径写入完整校验通过的安装包；打开前会再次校验文件。Android 10+ 另核对包名、版本号与 APK 证书指纹，再交给 Android 系统安装器。网络或签名校验失败会显示错误并继续运行当前客户端。桌面端更新采用“下载已校验安装包，由用户启动安装器”的流程；macOS 用户解压签名清单里的 ZIP，将新应用复制到可写 Applications 目录。替换前应退出旧应用并保留一份旧应用副本；签名清单同时提供 DMG 安装下载入口。
 
-清单及 Web 压缩包/原生安装包由 `scripts/release-manifest.mjs` 生成，必须由 `scripts/init-signing.sh` 创建的长期 RSA 私钥签名。公开密钥固定于客户端配置；只允许可信 HTTPS 更新源。Web 与更新文件分目录发布：Web 使用独立不可变 release 目录，安装包路径带内容 SHA-256，最后才切换稳定清单。`scripts/prepare-deploy.mjs` 将 `dist/` 与签名更新目录合并为 `site/` + `updates/` 发布树，再交给云端部署脚本。
+清单及 Web 压缩包/原生安装包由 `scripts/release-manifest.mjs` 生成，必须由 `scripts/init-signing.sh` 创建的长期 RSA 私钥签名。公开密钥固定于客户端配置；只允许可信 HTTPS 更新源。Web 应用通过腾讯云服务滚动热更新；安装包路径带内容 SHA-256，先发布内容寻址文件，最后原子切换稳定清单。`deploy/publish-updates.sh` 发布前验证签名与每个包的摘要。
 
-## Android 首次签名发布到 GitHub Pages
+## Android 首次签名发布到腾讯云
 
-仓库的 Pages 站点为 `https://ciki-9876.github.io/yangyizhi/`，客户端固定读取 `/updates/stable.json`。`pages.yml` 每次部署网页时会先从当前 Pages 下载旧清单，验签并逐个校验旧安装包，再把它们带入新站点，避免普通网页发布意外清掉更新文件。`publish-android-updates.yml` 只允许从 `main` 手动运行；它构建正式签名 APK、Web 压缩包、生成 RSA-SHA256 清单并部署 Pages，最后检查清单与 `/healthz`。
+正式客户端固定读取 `https://81.70.181.205/yangyizhi/updates/stable.json`。GitHub Pages 仅作为静态网页预览，不提供正式客户端更新源。`publish-android-updates.yml` 只允许从 `main` 手动运行；它构建正式签名 APK 与 Web 压缩包、生成 RSA-SHA256 清单、验签并上传至腾讯云，再检查部署后的清单。
 
 正式发布前：
 
 1. 核实没有可沿用的 Android keystore 或清单私钥。首次发布应从本机运行 `scripts/init-signing.sh`，生成长期密钥。当前这台 Mac 的私钥与 keystore 在 `~/.local/share/yangyizhi/signing/`，三个口令已存入 macOS Keychain 的 `yangyizhi.signing` 服务；请把签名目录加密备份到两处独立离线位置，并在密码管理器中备份这些口令。忘记密码或丢失 Android keystore 后，已安装应用无法正常覆盖升级；更换更新清单私钥则会让旧客户端拒绝后续清单。
 2. 将 `update-private.pem` 的完整加密 PEM、更新私钥口令、`android-release.jks` 的 Base64 内容、keystore/key 口令和 alias 保存为 GitHub Repository Secrets：`UPDATE_PRIVATE_KEY_PEM`、`UPDATE_KEY_PASSPHRASE`、`ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD`。不要在聊天、命令行参数、日志或仓库写入这些值。
 3. 确认 `clients/update-config.json` 里的公开密钥由同一私钥生成，并确认 Android 版本与 `versionCode` 已按发布策略递增。首次正式签名包不能覆盖调试签名包；从调试包切换前，先在应用内“复制存档”并保存数据，再安装首个正式签名包。
-4. 合并并部署包含真实公开密钥的客户端后，在 GitHub Actions 手动运行 **Publish signed Android update feed**，填写面向用户的发布说明。工作流会验证包名、APK 签名证书和更新清单，再部署到 Pages；Actions 日志不会输出私钥或口令。
+4. 使用 `deploy/provision-update-deployer.sh` 在腾讯云主机建立专用部署账号。它只允许 GitHub Actions 上传更新包并调用固定的更新发布程序；SSH key 禁止端口转发、Agent 转发、X11 和交互终端。将对应 `user@host`、私钥和固定的 `known_hosts` 条目写入 `TENCENT_SSH_TARGET`、`TENCENT_SSH_PRIVATE_KEY`、`TENCENT_SSH_KNOWN_HOSTS` 三个 GitHub Secrets。合并并部署包含真实公开密钥的客户端后，在 GitHub Actions 手动运行 **Publish signed Android update feed**，填写面向用户的发布说明。工作流会验证包名、APK 签名证书和更新清单，再部署到腾讯云；Actions 日志不会输出私钥或口令。
 
-首次运行只发布 Android 与 Web 更新项；后续清单会保留已发布 Windows/macOS 更新项及其校验过的下载文件。Pages 上的 Android APK 应低于 GitHub Pages 单文件限制；更大的正式安装包继续通过独立腾讯云下载目录分发。AAB 作为 5 天 Actions 中转产物下载后提交应用商店，不作为应用内更新包。
+首次运行只发布 Android 与 Web 更新项；后续清单会保留已发布 Windows/macOS 更新项及其校验过的下载文件。腾讯云更新目录按 SHA-256 内容寻址，并在安装包上传完成后才切换稳定清单。AAB 作为 5 天 Actions 中转产物下载后提交应用商店，不作为应用内更新包。
 
 ## 正式发布签名
 

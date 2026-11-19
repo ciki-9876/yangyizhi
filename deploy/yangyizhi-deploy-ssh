@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+incoming=/var/lib/yangyizhi-deploy/incoming
+deployer=/usr/local/sbin/yangyizhi-update-deploy
+command=${SSH_ORIGINAL_COMMAND:-}
+
+if [[ $command =~ ^scp\ -t\ ($incoming/yangyizhi-updates-[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}\.tgz)$ ]]; then
+  [[ -d $incoming && ! -L $incoming ]] || exit 126
+  exec /usr/bin/scp -t "${BASH_REMATCH[1]}"
+fi
+
+if [[ $command =~ ^sudo\ -n\ $deployer\ ([0-9]{8}T[0-9]{6}Z-[a-f0-9]{12})\ ($incoming/yangyizhi-updates-[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}\.tgz)\ ([a-f0-9]{64})$ ]]; then
+  release_id=${BASH_REMATCH[1]}
+  archive=${BASH_REMATCH[2]}
+  archive_sha=${BASH_REMATCH[3]}
+  [[ $archive == "$incoming/yangyizhi-updates-${release_id}.tgz" ]] || exit 126
+  exec /usr/bin/sudo -n "$deployer" "$release_id" "$archive" "$archive_sha"
+fi
+
+echo 'This key only supports Yangyizhi signed update publication.' >&2
+exit 126

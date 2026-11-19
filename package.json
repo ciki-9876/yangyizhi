@@ -6,7 +6,9 @@
   "scripts": {
     "build:web": "python3 src/build.py",
     "check:versions": "node scripts/check-versions.mjs",
-    "test": "node --test tests/release.test.mjs tests/desktop-updates.test.cjs",
+    "test": "node --test tests/release.test.mjs tests/desktop-updates.test.cjs tests/workspace-backup.test.mjs server/*.test.mjs",
+    "test:server": "node --test server/*.test.mjs",
+    "start": "node server/server.mjs",
     "android:sync": "npm run build:web && cap sync android",
     "release:manifest": "node scripts/release-manifest.mjs",
     "test:agent": "node src/agent/rhythm-sim.js && node src/sim.js"

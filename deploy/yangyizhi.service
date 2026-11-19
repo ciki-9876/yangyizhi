@@ -1,0 +1,35 @@
+[Unit]
+Description=Yangyizhi account and sync service
+After=network.target
+
+[Service]
+Type=simple
+User=yangyizhi
+Group=yangyizhi
+WorkingDirectory=/opt/yangyizhi/current
+EnvironmentFile=/etc/yangyizhi.env
+ExecStart=/usr/bin/node /opt/yangyizhi/current/server/server.mjs
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=20
+StateDirectory=yangyizhi
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/yangyizhi
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target
