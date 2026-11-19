@@ -40,10 +40,26 @@
     }
     return result.data;
   }
+  function validUser(user) {
+    return !!(user && typeof user.id === 'string' && /^[0-9a-f-]{36}$/i.test(user.id) &&
+      typeof user.username === 'string' && user.username.length > 0 && user.username.length <= 32);
+  }
   window.YangyizhiCloud = Object.freeze({
     ready, isConfigured, isNative,
     async account() { return unwrap('account', 'GET'); },
-    async authenticate(mode, credentials) { return unwrap(`auth/${mode}`, 'POST', credentials); },
+    async authenticate(mode, credentials) {
+      const result = await unwrap(`auth/${mode}`, 'POST', credentials);
+      if (validUser(result?.user)) return result;
+
+      // Native bridges keep the successful session in secure storage. If the
+      // auth response lost its user object while crossing the bridge, recover
+      // the canonical user through that newly established session.
+      try {
+        const current = await unwrap('account', 'GET');
+        if (validUser(current?.user)) return { ...result, user: current.user };
+      } catch (_) { /* report the malformed auth response below */ }
+      throw new Error('账号可能已创建，但客户端没有读取到账号信息。请用刚才的用户名登录；若仍失败，请更新客户端后重试。');
+    },
     async logout() { return unwrap('auth/logout', 'POST', {}); },
     async deleteAccount(password) { return unwrap('account/delete', 'POST', { password }); },
     async loadWorkspace(since) { return unwrap(Number.isSafeInteger(since) ? `workspace?since=${since}` : 'workspace', 'GET'); },
