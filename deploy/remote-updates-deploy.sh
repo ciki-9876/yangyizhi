@@ -37,7 +37,8 @@ with tarfile.open(archive, 'r:gz') as tar:
         seen.add(name); total += member.size
         if member.size < 0 or member.size > 500*1024*1024 or total > 2*1024*1024*1024: raise SystemExit('Update archive exceeds size limits.')
         parts = name.split('/')
-        if name != 'stable.json' and not (len(parts) == 2 and len(parts[0]) == 64 and all(c in '0123456789abcdef' for c in parts[0])): raise SystemExit('Unexpected update file.')
+        hash_directory = len(parts[0]) == 64 and all(c in '0123456789abcdef' for c in parts[0])
+        if name != 'stable.json' and not ((len(parts) == 1 and member.isdir() and hash_directory) or (len(parts) == 2 and member.isfile() and hash_directory)): raise SystemExit('Unexpected update file.')
         files.append((member, name))
     if 'stable.json' not in {name for member, name in files if member.isfile()}: raise SystemExit('Signed stable.json is missing.')
     for member, name in files:
