@@ -26,7 +26,7 @@
 
 账号服务发布包需包含 `server/`、构建后的 `dist/`、`scripts/workspace-backup.mjs`。使用 `deploy/publish-cloud.sh` 构建包、上传，并调用远端原子部署脚本。首次部署启用独立的 `yangyizhi.service`；每次切换代码前保留旧 release 与 current 指针。`/var/lib/yangyizhi` 不属于发布包，绝不能用代码归档覆盖。健康检查需使用产品入口的 `/yangyizhi/healthz`（若配置其他独立路径则对应调整），并验证 JSON 中 `ok: true`。
 
-正式客户端发布时，更新包和签名清单由 Caddy 从独立的 `/srv/yangyizhi/updates` 提供，清单入口为 `https://81.70.181.205/yangyizhi/updates/stable.json`。使用 `deploy/publish-updates.sh <SSH_HOST_ALIAS> artifacts/release-updates` 发布时，脚本会按固定公钥验签并检查所有包的大小、SHA-256 和下载路径；远端先放入内容寻址的安装包，最后原子切换 `stable.json`，并留存上一份清单。清单有问题时用 `deploy/rollback-updates.sh <SSH_HOST_ALIAS> <UPDATE_RELEASE_ID> https://81.70.181.205/yangyizhi/updates/stable.json` 恢复上一份。Web 首页与账号 API 由同一 Node 服务提供，以保持 Cookie 与 API 同源。部署后从产品入口测试 `/yangyizhi/healthz`、`/yangyizhi/api/health`、注册/登录、跨设备读取、冲突保护和退出登录。
+正式客户端发布时，更新包和签名清单由 Caddy 从独立的 `/srv/yangyizhi/updates` 提供，清单入口为 `https://81.70.181.205/yangyizhi/updates/stable.json`。使用 `deploy/publish-updates.sh <SSH_HOST_ALIAS> artifacts/release-updates` 发布时，脚本会按固定公钥验签并检查所有包的大小、SHA-256 和下载路径；远端先放入内容寻址的安装包，最后原子切换 `stable.json`，并把部署前清单留在 `/var/backups/yangyizhi-updates/<UPDATE_RELEASE_ID>/stable.previous.json`。清单有问题时用 `deploy/rollback-updates.sh <SSH_HOST_ALIAS> <UPDATE_RELEASE_ID> https://81.70.181.205/yangyizhi/updates/stable.json` 通过专用受限 SSH 命令恢复上一份；首发前没有旧清单，因此首发版本不可回退到不存在的旧版本。Web 首页与账号 API 由同一 Node 服务提供，以保持 Cookie 与 API 同源。部署后从产品入口测试 `/yangyizhi/healthz`、`/yangyizhi/api/health`、注册/登录、跨设备读取、冲突保护和退出登录。
 
 旧的静态下载目录流程仍可接收只包含 `site/`、`updates/` 的包，但账号云版应使用服务发布流程，不能把静态站点包直接当成云同步服务。
 

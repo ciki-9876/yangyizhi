@@ -1,19 +1,32 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 umask 077
-[[ $# -eq 3 && $(id -u) -eq 0 ]] || { echo 'Run as root with release id, archive, and SHA-256.' >&2; exit 2; }
-release_id=$1 archive=$2 archive_sha=$3
 incoming=/var/lib/yangyizhi-deploy/incoming
-[[ $release_id =~ ^[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}$ && $archive == "$incoming/yangyizhi-updates-${release_id}.tgz" && $archive_sha =~ ^[a-f0-9]{64}$ && -f $archive && ! -L $archive ]] || { echo 'Invalid update release arguments.' >&2; exit 2; }
 destination=/srv/yangyizhi/updates
+[[ $(id -u) -eq 0 ]] || { echo 'Run as root.' >&2; exit 2; }
+exec 9>/run/lock/yangyizhi-deploy.lock
+flock -n 9 || { echo 'A Yangyizhi deployment is already running.' >&2; exit 1; }
+
+if [[ $# -eq 2 && $1 == rollback && $2 =~ ^[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}$ ]]; then
+  release_id=$2
+  backup="/var/backups/yangyizhi-updates/$release_id/stable.previous.json"
+  [[ -s $backup && -f $backup && ! -L $backup && -d $destination && ! -L $destination ]] || { echo 'Previous signed manifest backup not found.' >&2; exit 1; }
+  temporary="$destination/.stable-rollback-$release_id.tmp"
+  install -o root -g root -m 0644 "$backup" "$temporary"
+  mv -f "$temporary" "$destination/stable.json"
+  echo "RESTORED previous signed manifest from $release_id"
+  exit 0
+fi
+
+[[ $# -eq 3 ]] || { echo 'Run as root with release id, archive, and SHA-256.' >&2; exit 2; }
+release_id=$1 archive=$2 archive_sha=$3
+[[ $release_id =~ ^[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}$ && $archive == "$incoming/yangyizhi-updates-${release_id}.tgz" && $archive_sha =~ ^[a-f0-9]{64}$ && -f $archive && ! -L $archive ]] || { echo 'Invalid update release arguments.' >&2; exit 2; }
 staging="/srv/yangyizhi/.updates-stage-$release_id"
 backup="/var/backups/yangyizhi-updates/$release_id"
 private_archive=$(mktemp /var/tmp/yangyizhi-updates.XXXXXXXX.tgz)
 chmod 0600 "$private_archive"
 trap 'rm -f -- "$private_archive"' EXIT
 install -o root -g root -m 0600 "$archive" "$private_archive"
-exec 9>/run/lock/yangyizhi-deploy.lock
-flock -n 9 || { echo 'A Yangyizhi deployment is already running.' >&2; exit 1; }
 [[ $(sha256sum "$private_archive" | cut -d ' ' -f1) == "$archive_sha" ]] || { echo 'Archive SHA-256 mismatch.' >&2; exit 1; }
 mkdir -p /srv/yangyizhi "$destination" /var/backups/yangyizhi-updates "$backup"
 [[ ! -L /srv/yangyizhi && ! -L "$destination" && ! -L /var/backups/yangyizhi-updates ]] || { echo 'Update directories must not be symlinks.' >&2; exit 1; }

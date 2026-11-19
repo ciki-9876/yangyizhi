@@ -10,6 +10,10 @@ if [[ $command =~ ^scp\ -t\ ($incoming/yangyizhi-updates-[0-9]{8}T[0-9]{6}Z-[a-f
   exec /usr/bin/scp -t "${BASH_REMATCH[1]}"
 fi
 
+if [[ $command =~ ^sudo\ -n\ $deployer\ rollback\ ([0-9]{8}T[0-9]{6}Z-[a-f0-9]{12})$ ]]; then
+  exec /usr/bin/sudo -n "$deployer" rollback "${BASH_REMATCH[1]}"
+fi
+
 if [[ $command =~ ^sudo\ -n\ $deployer\ ([0-9]{8}T[0-9]{6}Z-[a-f0-9]{12})\ ($incoming/yangyizhi-updates-[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}\.tgz)\ ([a-f0-9]{64})$ ]]; then
   release_id=${BASH_REMATCH[1]}
   archive=${BASH_REMATCH[2]}
