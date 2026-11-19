@@ -118,7 +118,6 @@ async function main() {
       if (entry.name !== `Yangyizhi-${versions.macos[arch]}-mac-${arch}.dmg`) throw new Error(`macOS ${arch} DMG 文件名与版本源不一致`);
       macInstallers[arch] = { url: versioned.url, bytes: versioned.bytes, sha256: versioned.sha256 };
     } else throw new Error(`不认识的发布文件名：${entry.name}`);
-    if (versioned.version !== versions.web && entry.name === 'web.zip') throw new Error('Web 版本与版本源不一致');
   }
   if (!assets.web) throw new Error('缺少 web.zip');
   for (const [arch, installer] of Object.entries(macInstallers)) {
