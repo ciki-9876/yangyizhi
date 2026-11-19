@@ -10,7 +10,7 @@ trap 'rm -f "$archive"' EXIT
 tar -czf "$archive" -C "$directory" .
 if command -v sha256sum >/dev/null 2>&1; then archive_sha=$(sha256sum "$archive" | cut -d ' ' -f1); else archive_sha=$(shasum -a 256 "$archive" | cut -d ' ' -f1); fi
 release_id="$(date -u +%Y%m%dT%H%M%SZ)-${archive_sha:0:12}"
-remote_archive="/tmp/yangyizhi-updates-${release_id}.tgz"
-scp -- "$archive" "${target}:${remote_archive}"
-ssh -- "$target" "sudo bash -s -- '$release_id' '$remote_archive' '$archive_sha'" < "$(dirname "$0")/remote-updates-deploy.sh"
+remote_archive="/var/lib/yangyizhi-deploy/incoming/yangyizhi-updates-${release_id}.tgz"
+scp -O -- "$archive" "${target}:${remote_archive}"
+ssh -- "$target" "sudo -n /usr/local/sbin/yangyizhi-update-deploy $release_id $remote_archive $archive_sha"
 printf 'Published signed update feed release %s\n' "$release_id"

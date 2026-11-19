@@ -3,17 +3,22 @@ set -Eeuo pipefail
 umask 077
 [[ $# -eq 3 && $(id -u) -eq 0 ]] || { echo 'Run as root with release id, archive, and SHA-256.' >&2; exit 2; }
 release_id=$1 archive=$2 archive_sha=$3
-[[ $release_id =~ ^[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}$ && $archive == "/tmp/yangyizhi-updates-${release_id}.tgz" && $archive_sha =~ ^[a-f0-9]{64}$ ]] || { echo 'Invalid update release arguments.' >&2; exit 2; }
+incoming=/var/lib/yangyizhi-deploy/incoming
+[[ $release_id =~ ^[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}$ && $archive == "$incoming/yangyizhi-updates-${release_id}.tgz" && $archive_sha =~ ^[a-f0-9]{64}$ && -f $archive && ! -L $archive ]] || { echo 'Invalid update release arguments.' >&2; exit 2; }
 destination=/srv/yangyizhi/updates
 staging="/srv/yangyizhi/.updates-stage-$release_id"
 backup="/var/backups/yangyizhi-updates/$release_id"
+private_archive=$(mktemp /var/tmp/yangyizhi-updates.XXXXXXXX.tgz)
+chmod 0600 "$private_archive"
+trap 'rm -f -- "$private_archive"' EXIT
+install -o root -g root -m 0600 "$archive" "$private_archive"
 exec 9>/run/lock/yangyizhi-deploy.lock
 flock -n 9 || { echo 'A Yangyizhi deployment is already running.' >&2; exit 1; }
-[[ $(sha256sum "$archive" | cut -d ' ' -f1) == "$archive_sha" ]] || { echo 'Archive SHA-256 mismatch.' >&2; exit 1; }
+[[ $(sha256sum "$private_archive" | cut -d ' ' -f1) == "$archive_sha" ]] || { echo 'Archive SHA-256 mismatch.' >&2; exit 1; }
 mkdir -p /srv/yangyizhi "$destination" /var/backups/yangyizhi-updates "$backup"
 [[ ! -L /srv/yangyizhi && ! -L "$destination" && ! -L /var/backups/yangyizhi-updates ]] || { echo 'Update directories must not be symlinks.' >&2; exit 1; }
 rm -rf -- "$staging"; mkdir -m 0700 "$staging"
-python3 - "$archive" "$staging" <<'PY'
+python3 - "$private_archive" "$staging" <<'PY'
 from pathlib import Path, PurePosixPath
 import hashlib, sys, tarfile
 archive, destination = Path(sys.argv[1]), Path(sys.argv[2])
@@ -52,6 +57,7 @@ while IFS= read -r -d '' source; do
 done < <(find "$staging" -mindepth 2 -type f ! -name stable.json -print0)
 install -m 0644 "$staging/stable.json" "$destination/.stable-$release_id.tmp"
 mv -f "$destination/.stable-$release_id.tmp" "$destination/stable.json"
-chmod 0755 /srv/yangyizhi "$destination"; rm -rf -- "$staging"; rm -f "$archive"
+chmod 0755 /srv/yangyizhi "$destination"; rm -rf -- "$staging"
 printf 'published=%s\nprevious-manifest=%s\n' "$release_id" "$backup/stable.previous.json" > "$backup/status"
 echo "UPDATE_FEED_PUBLISHED $release_id"
+rm -f -- "$archive"

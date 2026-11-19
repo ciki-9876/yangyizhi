@@ -69,8 +69,8 @@ unset UPDATE_KEY_PASSPHRASE
 
 ### 当前尚需提供
 
-- 现有腾讯云主机的 SSH 主机别名/部署用户或配置好的本机 SSH key；当前工作区未检测到可用 SSH 登录。
-- GitHub Actions 运行正式更新发布工作流时需配置受保护的 Tencent SSH Secrets；若仅从本机发布，用本机 SSH 配置即可。
+- 首次配置更新发布通道时，在腾讯云 TAT 中以 root 从已合并的 `main` 下载 `deploy/provision-update-deployer.sh`、`deploy/yangyizhi-deploy-ssh` 和 `deploy/remote-updates-deploy.sh`，再把专用公钥作为脚本参数执行。该密钥只能写入更新暂存目录并调用固定的 root 更新脚本；不要授权通用 root SSH。
+- GitHub Actions 正式发布需要 `TENCENT_SSH_TARGET`、`TENCENT_SSH_PRIVATE_KEY`、`TENCENT_SSH_KNOWN_HOSTS` 三项 Secrets。主机密钥指纹应通过腾讯云 TAT 上的 `/etc/ssh/ssh_host_ed25519_key.pub` 核对后固定。
 - Tencent COS bucket/region/访问凭据仅在决定用 COS 做安装包分发时需要；首版可通过独立 CVM 下载目录发布。
 - 稳定 Android 发布 keystore 和密码；Apple Developer ID/公证材料用于公众 macOS 分发。Windows 商业代码签名证书可后续补充。
 - 更新清单 RSA 私钥需创建后备份到两处受控离线位置；公钥固定进客户端。不要把私钥、keystore 或凭据发在聊天或提交到仓库。
