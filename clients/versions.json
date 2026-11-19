@@ -1,10 +1,10 @@
 {
   "updateProtocol": 1,
-  "web": "0.1.1",
+  "web": "0.1.2",
   "windows": "0.1.0",
   "android": {
-    "version": "0.1.1",
-    "versionCode": 2
+    "version": "0.1.2",
+    "versionCode": 3
   },
   "macos": {
     "arm64": "0.1.0",

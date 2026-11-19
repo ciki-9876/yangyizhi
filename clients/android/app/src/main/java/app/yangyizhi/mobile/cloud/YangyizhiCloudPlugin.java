@@ -109,8 +109,17 @@ public final class YangyizhiCloudPlugin extends Plugin {
         } finally { connection.disconnect(); }
     }
 
-    private void resolve(PluginCall call, JSONObject response) throws Exception {
-        JSONObject data = response.getJSONObject("data"); data.remove("token"); JSObject result = new JSObject(response.toString()); call.resolve(result);
+    private void resolve(PluginCall call, JSONObject response) throws Exception { resolve(call, response, null); }
+
+    private void resolve(PluginCall call, JSONObject response, JSONObject fallbackUser) throws Exception {
+        JSONObject source = response.getJSONObject("data");
+        JSObject data = JSObject.fromJSONObject(source);
+        data.remove("token");
+        JSONObject user = source.optJSONObject("user");
+        if ((user == null || !user.has("id")) && fallbackUser != null) user = fallbackUser;
+        if (user != null) data.put("user", JSObject.fromJSONObject(user));
+        JSObject result = new JSObject().put("status", response.getInt("status")).put("data", data);
+        call.resolve(result);
     }
 
     @PluginMethod public void request(PluginCall call) {
@@ -129,15 +138,19 @@ public final class YangyizhiCloudPlugin extends Plugin {
                 if (auth) {
                     synchronized (guard) {
                         if (version != generation) { call.reject("登录状态已变化，请重试。"); return; }
-                        if (status >= 200 && status < 300) { JSONObject next = validateSession(data); writeSession(next); session = next; }
-                        resolve(call, response);
+                        JSONObject fallbackUser = null;
+                        if (status >= 200 && status < 300) {
+                            JSONObject next = validateSession(data); writeSession(next); session = next;
+                            fallbackUser = next.getJSONObject("user");
+                        }
+                        resolve(call, response, fallbackUser);
                     }
                 } else if ("health".equals(path)) resolve(call, response);
                 else synchronized (guard) {
                     if (session != bound || generation != version) { call.reject("登录账号已变化，请重试。"); return; }
                     if (("auth/logout".equals(path) || "account/delete".equals(path)) && (status == 200 || status == 401)) { writeSession(null); session = null; generation++; }
                     if (status == 401) { writeSession(null); session = null; generation++; }
-                    resolve(call, response);
+                    resolve(call, response, "account".equals(path) && status >= 200 && status < 300 ? bound.getJSONObject("user") : null);
                 }
             } catch (Exception ignored) { call.reject("云端连接失败，本机存档仍保留，请稍后重试。"); }
         });
