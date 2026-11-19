@@ -41,6 +41,10 @@ jobs:
       - run: npm ci
       - run: npm run build:web
       - run: python3 scripts/archive-web.py
+      - name: Stage the Web archive for publication
+        run: |
+          mkdir -p artifacts/web-release
+          cp artifacts/web/web.zip artifacts/web-release/web.zip
       - name: Restore and verify current update feed
         run: node scripts/fetch-update-feed.mjs --url https://81.70.181.205/yangyizhi/updates/stable.json --out artifacts/previous-updates
       - name: Create signed Web update feed
@@ -50,7 +54,7 @@ jobs:
         run: |
           printf '%s\n' "$RELEASE_NOTES" > "$RUNNER_TEMP/release-notes.md"
           node scripts/release-manifest.mjs \
-            --assets artifacts/web \
+            --assets artifacts/web-release \
             --out artifacts/next-updates/stable.json \
             --baseUrl https://81.70.181.205/yangyizhi/updates/ \
             --notes "$RUNNER_TEMP/release-notes.md" \
