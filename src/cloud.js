@@ -54,11 +54,12 @@
       // Native bridges keep the successful session in secure storage. If the
       // auth response lost its user object while crossing the bridge, recover
       // the canonical user through that newly established session.
+      let profileError = '账号资料格式不完整';
       try {
         const current = await unwrap('account', 'GET');
         if (validUser(current?.user)) return { ...result, user: current.user };
-      } catch (_) { /* report the malformed auth response below */ }
-      throw new Error('账号可能已创建，但客户端没有读取到账号信息。请用刚才的用户名登录；若仍失败，请更新客户端后重试。');
+      } catch (error) { profileError = error?.message || profileError; }
+      throw new Error(`账号可能已创建，但客户端没有读取到账号信息（${profileError}）。请用刚才的用户名登录；若仍失败，请更新客户端后重试。`);
     },
     async logout() { return unwrap('auth/logout', 'POST', {}); },
     async deleteAccount(password) { return unwrap('account/delete', 'POST', { password }); },
