@@ -1,6 +1,6 @@
 {
   "updateProtocol": 1,
-  "web": "0.1.0",
+  "web": "0.1.1",
   "windows": "0.1.0",
   "android": {
     "version": "0.1.0",
